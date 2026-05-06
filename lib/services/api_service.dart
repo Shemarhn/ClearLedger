@@ -32,7 +32,7 @@ class ApiService {
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(image.path,
-          filename: image.path.split('/').last),
+          filename: image.path.split(Platform.pathSeparator).last),
     });
 
     try {

@@ -12,4 +12,4 @@ class SupabaseHelper {
   static SupabaseClient get client => Supabase.instance.client;
 }
 
-final supabase = SupabaseHelper.client;
+SupabaseClient get supabase => SupabaseHelper.client;

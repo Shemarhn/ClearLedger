@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/profile.dart';
+
 import '../core/supabase_client.dart';
+import '../models/profile.dart';
+import 'notification_service.dart';
 
 class AuthService {
   User? get currentUser => supabase.auth.currentUser;
@@ -18,6 +20,7 @@ class AuthService {
       password: password,
       data: {'full_name': fullName},
     );
+    await NotificationService.instance.syncPushToken();
   }
 
   // Log in
@@ -29,6 +32,7 @@ class AuthService {
       email: email,
       password: password,
     );
+    await NotificationService.instance.syncPushToken();
   }
 
   // Sign out

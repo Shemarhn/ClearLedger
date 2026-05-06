@@ -45,7 +45,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       final parsed = await _apiService.processReceiptImage(File(image.path));
       if (!mounted) return;
 
-      await Navigator.of(context).push(
+      final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => ReviewTransactionScreen(
             parsed: parsed.copyWith(description: parsed.description ?? 'Receipt transaction'),
@@ -53,6 +53,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           ),
         ),
       );
+      if (saved == true && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction saved successfully.')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -76,7 +81,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       final parsed = await _apiService.processTextDescription(_textController.text.trim());
       if (!mounted) return;
 
-      await Navigator.of(context).push(
+      final saved = await Navigator.of(context).push<bool>(
         MaterialPageRoute(
           builder: (_) => ReviewTransactionScreen(
             parsed: parsed,
@@ -84,6 +89,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           ),
         ),
       );
+      if (saved == true && mounted) {
+        _textController.clear();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Transaction saved successfully.')),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

@@ -33,5 +33,7 @@ def validate_required_config() -> None:
 		missing.append("SUPABASE_SERVICE_ROLE_KEY")
 	if not SUPABASE_JWT_SECRET:
 		missing.append("SUPABASE_JWT_SECRET")
+	if not GEMINI_API_KEY:
+		missing.append("GEMINI_API_KEY")
 	if missing:
 		raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
