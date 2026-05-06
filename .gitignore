@@ -2,14 +2,21 @@
 .flutter-plugins
 .flutter-plugins-dependencies
 .idea/
+*.iml
 .pub/
 .venv/
 build/
 coverage/
 
 .env
+.env.*
+!.env.example
 *.env
+*.env.*
+!*.env.example
 backend/.env
+backend/.env.*
+!backend/.env.example
 **/google-services.json
 **/GoogleService-Info.plist
 *.jks
@@ -20,3 +27,12 @@ backend/.env
 
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+*.log
+.DS_Store
+Thumbs.db

@@ -30,7 +30,7 @@ class TransactionDetailScreen extends StatelessWidget {
               child: Image.network(
                 transaction.receiptImageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const Padding(
+                errorBuilder: (_, _, _) => const Padding(
                   padding: EdgeInsets.all(12),
                   child: Text('Unable to load receipt image.'),
                 ),

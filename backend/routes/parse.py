@@ -8,13 +8,14 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from supabase import create_client
 
 from auth import get_user_id
-from config import SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL
+from config import SUPABASE_SECRET_KEY, SUPABASE_URL
 from models import ParseReceiptResponse, ParseTextResponse, ParsedTransaction, TextInput
-from services.gemini_service import parse_receipt_image, parse_text_description
+from services.gemma_service import parse_receipt_image, parse_text_description
 from services.claude_service import (
     parse_receipt_image_fallback,
     parse_text_description_fallback,
 )
+from services.text_fallback_service import parse_text_description_basic
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 def _get_supabase():
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    return create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 
 async def _parse_receipt_impl(
@@ -33,7 +34,7 @@ async def _parse_receipt_impl(
     user_id: str = Depends(get_user_id),
 ):
     """
-    Accept a receipt image, upload to Supabase Storage, send to Gemini Vision,
+    Accept a receipt image, upload to Supabase Storage, send to Gemma,
     and return structured transaction data.
     """
     # Validate file type
@@ -69,16 +70,16 @@ async def _parse_receipt_impl(
         logger.warning(f"Failed to upload receipt to storage: {e}")
         # Continue even if storage upload fails; parsing is more important
 
-    # Parse with Gemini (try fallback on failure)
+    # Parse with Gemma (try fallback on failure)
     mime = file.content_type or "image/jpeg"
     try:
         result = await parse_receipt_image(image_bytes, mime)
-    except Exception as gemini_error:
-        logger.warning(f"Gemini failed, trying Claude fallback: {gemini_error}")
+    except Exception as gemma_error:
+        logger.warning(f"Gemma failed, trying Claude fallback: {gemma_error}")
         try:
             result = await parse_receipt_image_fallback(image_bytes, mime)
         except Exception as claude_error:
-            logger.error(f"Both LLMs failed. Gemini: {gemini_error}, Claude: {claude_error}")
+            logger.error(f"Both LLMs failed. Gemma: {gemma_error}, Claude: {claude_error}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Could not parse the receipt. Please try again or enter the transaction manually.",
@@ -111,22 +112,30 @@ async def _parse_text_impl(
     user_id: str = Depends(get_user_id),
 ):
     """
-    Accept a natural language transaction description, send to Gemini,
+    Accept a natural language transaction description, send to Gemma,
     and return structured transaction data.
     """
-    # Parse with Gemini (try fallback on failure)
+    # Parse with Gemma (try fallback on failure)
     try:
         result = await parse_text_description(body.text)
-    except Exception as gemini_error:
-        logger.warning(f"Gemini failed, trying Claude fallback: {gemini_error}")
+    except Exception as gemma_error:
+        logger.warning(f"Gemma failed, trying Claude fallback: {gemma_error}")
         try:
             result = await parse_text_description_fallback(body.text)
         except Exception as claude_error:
-            logger.error(f"Both LLMs failed. Gemini: {gemini_error}, Claude: {claude_error}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Could not parse the transaction description. Please try again.",
+            logger.error(
+                "Both LLMs failed for text parsing. "
+                f"Gemma: {gemma_error}, Claude: {claude_error}. "
+                "Trying local fallback parser."
             )
+            try:
+                result = parse_text_description_basic(body.text)
+            except Exception as fallback_error:
+                logger.error(f"Local fallback text parser failed: {fallback_error}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Could not parse the transaction description. Please try again.",
+                )
 
     parsed = ParsedTransaction(
         merchant=result.get("merchant"),

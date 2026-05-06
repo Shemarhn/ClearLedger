@@ -9,11 +9,14 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await SupabaseHelper.initialize();
 
-  final firebaseReady = await _tryInitializeFirebase();
-  try {
-    await NotificationService.instance.initialize(enablePush: firebaseReady);
-  } catch (error) {
-    debugPrint('ClearLedger notifications disabled: $error');
+  const enablePush = bool.fromEnvironment('ENABLE_PUSH_NOTIFICATIONS');
+  if (enablePush) {
+    final firebaseReady = await _tryInitializeFirebase();
+    try {
+      await NotificationService.instance.initialize(enablePush: firebaseReady);
+    } catch (error) {
+      debugPrint('ClearLedger notifications disabled: $error');
+    }
   }
 
   runApp(const ClearLedgerApp());

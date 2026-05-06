@@ -1,7 +1,7 @@
 """
 ClearLedger FastAPI - Claude Service
 Fallback LLM provider using Anthropic Claude Sonnet.
-Used when Gemini is unavailable or returns errors.
+Used when Gemma is unavailable or returns errors.
 """
 import json
 import re

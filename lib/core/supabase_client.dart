@@ -5,7 +5,7 @@ class SupabaseHelper {
   static Future<void> initialize() async {
     await Supabase.initialize(
       url: AppConstants.supabaseUrl,
-      anonKey: AppConstants.supabaseAnonKey,
+      anonKey: AppConstants.supabasePublishableKey,
     );
   }
 

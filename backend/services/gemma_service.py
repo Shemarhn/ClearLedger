@@ -1,16 +1,13 @@
-"""
-ClearLedger FastAPI - Gemini Service
-Handles all Google Gemini API calls for receipt parsing and text parsing.
-Primary LLM provider.
-"""
+"""Primary LLM provider for Google-hosted Gemma receipt and text parsing."""
+import asyncio
 import json
 import re
 from datetime import date
 
-import google.generativeai as genai
-from config import GEMINI_API_KEY
+from google import genai
+from google.genai import types
 
-genai.configure(api_key=GEMINI_API_KEY)
+from config import GEMMA_API_KEY, GEMMA_MODEL
 
 RECEIPT_SYSTEM_PROMPT = """You are a financial data extraction assistant. Extract transaction details from this receipt or transaction screenshot. Return ONLY a valid JSON object with these fields:
 - merchant (string): the store or business name
@@ -22,6 +19,29 @@ RECEIPT_SYSTEM_PROMPT = """You are a financial data extraction assistant. Extrac
 - confidence (number): 0 to 1 indicating how confident you are in the extraction
 
 Do not include any explanation, markdown formatting, or code fences. Return ONLY the raw JSON object."""
+
+
+def _get_client() -> genai.Client:
+    return genai.Client(api_key=GEMMA_API_KEY)
+
+
+def _generate_content(contents: list) -> str:
+    client = _get_client()
+    response = client.models.generate_content(
+        model=GEMMA_MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=1024,
+            response_mime_type="application/json",
+        ),
+    )
+
+    if not response.text:
+        raise ValueError("Gemma returned an empty response.")
+
+    return response.text
+
 
 TEXT_SYSTEM_PROMPT_TEMPLATE = """You are a financial transaction parser. The user will describe a transaction in natural language. Extract the transaction details and return ONLY a valid JSON object with these fields:
 - merchant (string): the store or business name, or null if not mentioned
@@ -53,7 +73,7 @@ def _clean_json_response(text: str) -> dict:
 
 async def parse_receipt_image(image_bytes: bytes, mime_type: str = "image/jpeg") -> dict:
     """
-    Send a receipt image to Gemini Vision and extract transaction data.
+    Send a receipt image to Gemma and extract transaction data.
 
     Args:
         image_bytes: Raw bytes of the receipt image.
@@ -62,30 +82,20 @@ async def parse_receipt_image(image_bytes: bytes, mime_type: str = "image/jpeg")
     Returns:
         Parsed transaction data as a dictionary.
     """
-    model = genai.GenerativeModel("gemini-2.0-flash")
-
-    image_part = {
-        "mime_type": mime_type,
-        "data": image_bytes,
-    }
-
-    response = model.generate_content(
-        [RECEIPT_SYSTEM_PROMPT, image_part],
-        generation_config=genai.GenerationConfig(
-            temperature=0.1,
-            max_output_tokens=1024,
-        ),
+    response_text = await asyncio.to_thread(
+        _generate_content,
+        [
+            RECEIPT_SYSTEM_PROMPT,
+            types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+        ],
     )
 
-    if not response.text:
-        raise ValueError("Gemini returned an empty response for the receipt image.")
-
-    return _clean_json_response(response.text)
+    return _clean_json_response(response_text)
 
 
 async def parse_text_description(user_text: str) -> dict:
     """
-    Send a natural language transaction description to Gemini and extract structured data.
+    Send a natural language transaction description to Gemma and extract structured data.
 
     Args:
         user_text: The user's natural language description of a transaction.
@@ -96,17 +106,9 @@ async def parse_text_description(user_text: str) -> dict:
     today = date.today().isoformat()
     prompt = TEXT_SYSTEM_PROMPT_TEMPLATE.replace("{today}", today)
 
-    model = genai.GenerativeModel("gemini-2.0-flash")
-
-    response = model.generate_content(
+    response_text = await asyncio.to_thread(
+        _generate_content,
         [prompt, f"User input: {user_text}"],
-        generation_config=genai.GenerationConfig(
-            temperature=0.1,
-            max_output_tokens=1024,
-        ),
     )
 
-    if not response.text:
-        raise ValueError("Gemini returned an empty response for the text description.")
-
-    return _clean_json_response(response.text)
+    return _clean_json_response(response_text)

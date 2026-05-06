@@ -22,7 +22,7 @@ class NotificationService {
     if (!_localInitialized) {
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const initSettings = InitializationSettings(android: androidSettings);
-      await _localNotifications.initialize(initSettings);
+      await _localNotifications.initialize(settings: initSettings);
       _localInitialized = true;
     }
 
@@ -86,10 +86,10 @@ class NotificationService {
       );
 
       await _localNotifications.show(
-        0,
-        title,
-        body,
-        const NotificationDetails(android: androidDetails),
+        id: 0,
+        title: title,
+        body: body,
+        notificationDetails: const NotificationDetails(android: androidDetails),
       );
     } catch (error) {
       debugPrint('ClearLedger local notification failed: $error');

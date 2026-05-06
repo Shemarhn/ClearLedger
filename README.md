@@ -4,8 +4,8 @@ ClearLedger is a mobile-first personal finance tracking Android app (with Window
 
 ## Features
 
-- **Receipt Parsing (OCR):** Upload or snap a picture of a receipt, and Gemini 2.0 Flash extracts merchant, amount, category, date, and line items.
-- **Natural Language Parsing:** Type a description (e.g., "Bought lunch for $1500 jmd today") and Gemini transforms it into a structured transaction.
+- **Receipt Parsing (OCR):** Upload or snap a picture of a receipt, and Gemma 4 extracts merchant, amount, category, date, and line items.
+- **Natural Language Parsing:** Type a description (e.g., "Bought lunch for $1500 jmd today") and Gemma 4 transforms it into a structured transaction.
 - **Unified Ledger:** View, search, and filter all transactions.
 - **Budgets:** Set monthly budgets per category and track usage.
 - **Exporting:** Generate and download PDF and CSV reports of spending within a date range.
@@ -16,7 +16,7 @@ ClearLedger is a mobile-first personal finance tracking Android app (with Window
 - **Frontend:** Flutter (Dart), Firebase Cloud Messaging
 - **Backend:** FastAPI (Python), deployed on Railway
 - **Database:** Supabase (PostgreSQL with RLS, Auth, Storage)
-- **AI Processing:** Google Gemini 2.0 Flash API (with Claude Sonnet fallback)
+- **AI Processing:** Google-hosted Gemma 4 (with Claude Sonnet fallback)
 
 ## Setup Guide
 
@@ -27,45 +27,42 @@ ClearLedger is a mobile-first personal finance tracking Android app (with Window
 4. For quick local testing, either disable email confirmation in Supabase Auth settings or complete the email confirmation flow before trying to sign in.
 5. Copy these values for the next steps:
    - Project URL
-   - anon public key
-   - service role key
-   - JWT secret
+   - publishable key (`sb_publishable_...`)
+   - secret key (`sb_secret_...`)
 
 ### 2. FastAPI Backend
 From PowerShell:
 
-1. Go to the backend folder:
-   ```powershell
-   cd backend
-   ```
-2. Create and activate a virtual environment:
+1. Create and activate a virtual environment from the repo root:
    ```powershell
    py -3.11 -m venv .venv
    .\.venv\Scripts\Activate.ps1
    ```
-3. Install dependencies:
+2. Install dependencies:
    ```powershell
-   python -m pip install -r requirements.txt
+   python -m pip install -r backend\requirements.txt
    ```
-4. Create the backend environment file:
+3. Create the backend environment file:
    ```powershell
-   Copy-Item .env.example .env
+   Copy-Item backend\.env.example backend\.env
    ```
-5. Fill in `.env`:
+4. Fill in `backend\.env`:
    ```dotenv
    SUPABASE_URL=https://your-project-ref.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
-   SUPABASE_JWT_SECRET=your-supabase-jwt-secret
-   GEMINI_API_KEY=your-gemini-api-key
+   SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-publishable-key
+   SUPABASE_SECRET_KEY=sb_secret_your-secret-key
+   GEMMA_API_KEY=your-google-ai-studio-api-key
+   GEMMA_MODEL=gemma-4-31b-it
    ANTHROPIC_API_KEY=your-anthropic-api-key
    PORT=8000
    CORS_ORIGINS=*
    ```
-6. Run the API:
+5. Go to the backend folder and run the API:
    ```powershell
+   cd backend
    python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
-7. In another terminal, verify the backend is up:
+6. In another terminal, verify the backend is up:
    ```powershell
    Invoke-RestMethod http://127.0.0.1:8000/health
    ```
@@ -73,28 +70,26 @@ From PowerShell:
 ### 3. Flutter App
 1. Install [Flutter SDK](https://docs.flutter.dev/get-started/install).
 2. Go to the root directory `ClearLedger/`.
-3. Fetch dependencies:
+3. Generate the local platform folders that are not currently checked into this repo:
+   ```powershell
+   flutter create --platforms=android,windows .
+   ```
+4. Fetch dependencies and update `pubspec.lock`:
    ```powershell
    flutter pub get
    ```
-4. Run on an Android emulator:
+5. Run on an Android emulator:
    ```powershell
-   flutter run --dart-define=SUPABASE_URL=https://your-project-ref.supabase.co --dart-define=SUPABASE_ANON_KEY=your-supabase-anon-key --dart-define=API_BASE_URL=http://10.0.2.2:8000
+   flutter run --dart-define=SUPABASE_URL=https://your-project-ref.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-publishable-key --dart-define=API_BASE_URL=http://10.0.2.2:8000
    ```
-5. Run on Windows desktop:
+6. Run on Windows desktop:
    ```powershell
-   flutter run -d windows --dart-define=SUPABASE_URL=https://your-project-ref.supabase.co --dart-define=SUPABASE_ANON_KEY=your-supabase-anon-key --dart-define=API_BASE_URL=http://127.0.0.1:8000
+   flutter run -d windows --dart-define=SUPABASE_URL=https://your-project-ref.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-publishable-key --dart-define=API_BASE_URL=http://127.0.0.1:8000
    ```
-6. Run on a physical Android device connected to the same network as your computer:
+7. Run on a physical Android device connected to the same network as your computer:
    ```powershell
-   flutter run --dart-define=SUPABASE_URL=https://your-project-ref.supabase.co --dart-define=SUPABASE_ANON_KEY=your-supabase-anon-key --dart-define=API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8000
+   flutter run --dart-define=SUPABASE_URL=https://your-project-ref.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_your-publishable-key --dart-define=API_BASE_URL=http://YOUR_COMPUTER_LAN_IP:8000
    ```
-
-If `flutter run` reports that platform folders are missing, generate them from the repo root with:
-
-```powershell
-flutter create --platforms=android,windows .
-```
 
 ## End-to-End Test Checklist
 

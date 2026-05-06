@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../services/api_service.dart';
 import '../../services/auth_service.dart';
+import '../../services/biometric_lock_service.dart';
 import '../auth/login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -18,8 +19,83 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _authService = AuthService();
   final _apiService = ApiService();
+  final _biometricLockService = BiometricLockService.instance;
 
   bool _exporting = false;
+  bool _loadingBiometricSetting = true;
+  bool _biometricAvailable = false;
+  bool _biometricEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricSetting();
+  }
+
+  Future<void> _loadBiometricSetting() async {
+    final enabled = await _biometricLockService.isEnabled();
+    bool available = false;
+    try {
+      available = await _biometricLockService.canUseBiometrics();
+    } catch (_) {
+      available = false;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _biometricEnabled = enabled && available;
+      _biometricAvailable = available;
+      _loadingBiometricSetting = false;
+    });
+
+    if (enabled && !available) {
+      await _biometricLockService.setEnabled(false);
+    }
+  }
+
+  Future<void> _setBiometricLock(bool enabled) async {
+    if (_loadingBiometricSetting) return;
+
+    setState(() => _loadingBiometricSetting = true);
+    try {
+      if (!enabled) {
+        await _biometricLockService.setEnabled(false);
+        if (!mounted) return;
+        setState(() => _biometricEnabled = false);
+        return;
+      }
+
+      final available = await _biometricLockService.canUseBiometrics();
+      if (!available) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Biometric unlock is not available on this device.')),
+        );
+        return;
+      }
+
+      final authenticated = await _biometricLockService.authenticate(
+        reason: 'Enable biometric unlock for ClearLedger',
+      );
+      if (!authenticated) {
+        return;
+      }
+
+      await _biometricLockService.setEnabled(true);
+      if (!mounted) return;
+      setState(() {
+        _biometricAvailable = true;
+        _biometricEnabled = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update biometric unlock: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _loadingBiometricSetting = false);
+    }
+  }
 
   Future<void> _logout() async {
     await _authService.signOut();
@@ -74,6 +150,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const CircleAvatar(child: Icon(Icons.person_outline)),
               title: Text(user?.email ?? 'No email'),
               subtitle: const Text('Profile & account'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: SwitchListTile(
+              secondary: const Icon(Icons.fingerprint),
+              title: const Text('Biometric unlock'),
+              subtitle: Text(
+                _biometricAvailable
+                    ? 'Require fingerprint when returning to the app'
+                    : 'Not available on this device',
+              ),
+              value: _biometricEnabled,
+              onChanged: _loadingBiometricSetting || !_biometricAvailable
+                  ? null
+                  : _setBiometricLock,
             ),
           ),
           const SizedBox(height: 12),

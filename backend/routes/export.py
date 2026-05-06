@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from supabase import create_client
 
 from auth import get_user_id
-from config import SUPABASE_SERVICE_ROLE_KEY, SUPABASE_URL
+from config import SUPABASE_SECRET_KEY, SUPABASE_URL
 from models import ExportRequest
 from services.export_service import generate_csv, generate_pdf
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/export", tags=["Export"])
 
 
 def _get_supabase():
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    return create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 
 async def _get_transactions_for_period(user_id: str, start_date, end_date):

@@ -38,17 +38,15 @@ Research was done on all options before writing this list. Here is what is recom
 
 ### LLM — Team Must Vote on This at the Week 1 Friday Meeting
 
-The team has budget flexibility, so this is a real decision. The models mentioned in the brief (GPT 5.3 and Gemini 3.1) do not exist at the time of writing. The correct current equivalents are below.
+The current development choice is Google-hosted Gemma 4 as the primary parser, with Claude Sonnet kept as the fallback provider for demo resilience.
 
 | Option | Model | Cost | Notes |
 |---|---|---|---|
-| **Recommended (free)** | Google Gemini 2.0 Flash via Google AI Studio | Free — 15 req/min, 1,500 req/day | Sufficient for all development and the demo. Most practical choice. |
-| **Recommended (paid, best value)** | Google Gemini 2.5 Flash | ~$0.075 per 1M tokens | ~40× cheaper than Claude or GPT. Near top accuracy on receipt extraction. |
+| **Primary** | Gemma 4 via Google AI Studio / Google Gen AI API | Check current Google AI Studio pricing and limits | Current project choice for receipt and text extraction. |
 | **Best accuracy (paid)** | Claude Sonnet 4.6 (Anthropic) | ~$3 per 1M input tokens | Top-ranked on structured image table extraction benchmarks. ~$10–15 covers the entire project. |
-| **Solid alternative (paid)** | GPT-4.1 (OpenAI) | ~$2 per 1M input tokens | Widely documented. Good receipt accuracy. |
 | **Free alternative** | Grok (xAI free tier) | Free | Less tested on receipt parsing. Higher risk. Not recommended. |
 
-**Decision path:** Start with the free Gemini 2.0 Flash tier. If rate limits are hit or accuracy is unsatisfactory during Week 3 testing, upgrade to Gemini 2.5 Flash or Claude Sonnet 4.6 at that point.
+**Decision path:** Build and test against Gemma 4 first. Keep Claude configured as a fallback if Gemma is unavailable or returns unusable output.
 
 ### Full Stack
 
@@ -101,7 +99,7 @@ The team has budget flexibility, so this is a real decision. The models mentione
 - [ ] In GitHub Settings → Branches, add a branch protection rule to `main` requiring at least one PR review before any merge
 - [ ] In GitHub Settings → Branches, add the same protection to `dev` — no direct pushes, only PRs
 - [ ] Create a `.gitignore` file in the repo root covering: Flutter build folders, Python `venv/` and `__pycache__/`, all `.env` files, `google-services.json`, and `*.keystore` files
-- [ ] Create a `.env.example` file in the repo root with the following keys present but values left blank: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `LLM_API_KEY`, `PLAID_CLIENT_ID`, `PLAID_SECRET`, `PLAID_ENV`, `FCM_SERVER_KEY`, `ENCRYPTION_KEY`
+- [ ] Create a `.env.example` file with the following backend keys present but values left blank: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `GEMMA_API_KEY`, `GEMMA_MODEL`, `ANTHROPIC_API_KEY`, `PORT`, `CORS_ORIGINS`
 - [ ] Commit `.gitignore` and `.env.example` to `dev` and push
 
 ---
@@ -110,11 +108,10 @@ The team has budget flexibility, so this is a real decision. The models mentione
 **Suggested Owner: Shae — share credentials through a private locked Google Doc, never through chat or GitHub**
 
 - [ ] Create a Supabase project at supabase.com — name it `clearledger`
-- [ ] From the Supabase project settings, collect and securely share: Project URL, anon key, service role key, and JWT Secret (all four are needed)
+- [ ] From the Supabase project settings, collect and securely share: Project URL, publishable key, and secret key
 - [ ] Based on the team's LLM vote, obtain the API key for the chosen model:
-  - For Gemini (free or paid): go to aistudio.google.com and generate a key
+  - For Gemma 4: go to aistudio.google.com and generate a Google AI Studio key
   - For Claude: go to console.anthropic.com and generate a key
-  - For GPT-4.1: go to platform.openai.com and generate a key
 - [ ] Immediately test the API key by sending a basic text prompt and confirming a response comes back before continuing
 - [ ] Create a Plaid developer account at dashboard.plaid.com — select Sandbox when prompted — collect the client ID and secret
 - [ ] Create a Firebase project at console.firebase.google.com — enable Cloud Messaging only, no other Firebase services are needed
@@ -188,7 +185,7 @@ The team has budget flexibility, so this is a real decision. The models mentione
 **All members**
 
 - [ ] At the Friday meeting, each member reads the LLM comparison table at the top of this document
-- [ ] Team votes on which model to use — consider the free Gemini route as default unless the team has budget allocated
+- [ ] Team confirms Gemma 4 as the primary model and Claude as the fallback
 - [ ] Record the decision in a new file `docs/technical_decisions.md` with the model chosen and the reason
 - [ ] Commit `docs/technical_decisions.md` to `dev`
 
@@ -360,7 +357,7 @@ The team has budget flexibility, so this is a real decision. The models mentione
 - [ ] Navigate to the `backend/` folder in the repo
 - [ ] Create a Python virtual environment inside `backend/` — name it `venv`
 - [ ] Activate the virtual environment
-- [ ] Install the following packages: `fastapi`, `uvicorn`, `python-dotenv`, `Pillow`, `python-multipart`, `supabase`, `PyJWT`, `reportlab`, `cryptography`, `apscheduler`, and the API client library for the chosen LLM (google-generativeai for Gemini, anthropic for Claude, openai for GPT)
+- [ ] Install the backend packages listed in `backend/requirements.txt`: `fastapi`, `uvicorn`, `python-dotenv`, `python-multipart`, `supabase`, `google-genai`, `anthropic`, `reportlab`, and `Pillow`
 - [ ] Run `pip freeze > requirements.txt` to save all dependencies
 - [ ] Create the folder structure inside `backend/`: `middleware/`, `routers/`, `services/`
 - [ ] Create `backend/main.py` with a FastAPI app instance and a single `/health` GET route that returns a status ok response
@@ -425,7 +422,7 @@ The team has budget flexibility, so this is a real decision. The models mentione
 **Suggested Owner: Davi-Ann**
 
 - [ ] Create `backend/middleware/auth.py`
-- [ ] Implement a `verify_token` dependency function that: reads the `Authorization` header from the incoming request, expects a `Bearer` token format, decodes the token using PyJWT against the `SUPABASE_JWT_SECRET` environment variable with the `HS256` algorithm and the `authenticated` audience claim, returns the decoded payload containing the user ID and email if valid, and raises an HTTP 401 error with an appropriate message if the token is missing, expired, or invalid
+- [ ] Implement a `verify_token` dependency function that: reads the `Authorization` header from the incoming request, expects a `Bearer` token format, asks Supabase Auth to validate the token via `/auth/v1/user` using the publishable key, returns the Supabase user ID and email if valid, and raises an HTTP 401 error if the token is missing, expired, or invalid
 - [ ] Test the middleware manually: call a protected endpoint with a valid Supabase JWT (obtainable by logging in via Supabase Auth in a test Flutter run or via the Supabase dashboard) and confirm it succeeds — then call it with an invalid token and confirm a 401 is returned
 
 ---
@@ -1029,7 +1026,7 @@ Go through every single screen with this checklist. Every item must be true befo
 | Risk | Likelihood | Action |
 |---|---|---|
 | LLM returns invalid JSON | Medium | Both parsing functions must handle this gracefully and show a user-friendly retry message. The Confirmation screen's manual edit fields are the recovery path when extraction fails. |
-| LLM rate limited during demo | Low | Free Gemini tier allows 15 requests per minute. More than enough for a live demo. Pre-cache demo extraction results as a fallback in case the network is down. |
+| LLM rate limited during demo | Low | Google AI Studio limits vary by model and project. Pre-cache demo extraction results as a fallback in case the network is down. |
 | Plaid has no live Jamaican bank connections | High (known) | Expected and acceptable. Plaid Sandbox works perfectly for the demo. CSV import is the real-world solution. Address this directly in the Limitations segment of the presentation. |
 | Schema change required mid-development | Medium | Any schema change after Week 2 requires a Friday team discussion. Changes go through `dev` immediately so all branches stay in sync. Announce all schema changes in the group chat the moment they are made. |
 | Feature creep | High | Hard rule enforced every Friday: no new features after end of Week 5. All new ideas go into `docs/future_features.md`. |

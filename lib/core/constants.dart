@@ -6,8 +6,10 @@ class AppConstants {
 
   static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL',
       defaultValue: 'YOUR_SUPABASE_URL');
-  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY',
-      defaultValue: 'YOUR_SUPABASE_ANON_KEY');
+  static const String supabasePublishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'YOUR_SUPABASE_PUBLISHABLE_KEY',
+  );
 
   // Categories match the backend schema
   static const List<String> categories = [

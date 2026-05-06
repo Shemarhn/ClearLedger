@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
 
 import '../../services/auth_service.dart';
 import '../home/home_screen.dart';
@@ -17,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
-  final _localAuth = LocalAuthentication();
 
   bool _loading = false;
   bool _hidePassword = true;
@@ -38,14 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-
-      final canCheck = await _localAuth.canCheckBiometrics;
-      if (canCheck) {
-        await _localAuth.authenticate(
-          localizedReason: 'Unlock ClearLedger with biometrics',
-          options: const AuthenticationOptions(biometricOnly: true),
-        );
-      }
 
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
