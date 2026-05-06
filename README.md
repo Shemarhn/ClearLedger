@@ -1,6 +1,6 @@
 # ClearLedger
 
-ClearLedger is a mobile-first personal finance tracking Android app (with Windows support) that eliminates manual data entry by extracting transaction details from receipt photos and natural language text using Large Language Models (LLMs).
+ClearLedger is a mobile-first personal finance tracking Android app that eliminates manual data entry by extracting transaction details from receipt photos and natural language text using Large Language Models (LLMs).
 
 ## Features
 

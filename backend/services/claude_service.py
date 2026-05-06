@@ -1,14 +1,10 @@
-"""
-ClearLedger FastAPI - Claude Service
-Fallback LLM provider using Anthropic Claude Sonnet.
-Used when Gemma is unavailable or returns errors.
-"""
-import json
-import re
+"""Fallback LLM provider using Anthropic Claude Sonnet."""
+
 from datetime import date
 
 import anthropic
 from config import ANTHROPIC_API_KEY
+from services.llm_json import parse_llm_json_object
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -37,17 +33,7 @@ Return ONLY the raw JSON object. No explanation, no markdown."""
 
 def _clean_json_response(text: str) -> dict:
     """Strip markdown code fences and parse JSON from LLM response."""
-    cleaned = text.strip()
-    cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
-    cleaned = re.sub(r"\s*```$", "", cleaned)
-    cleaned = cleaned.strip()
-
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError as e:
-        raise ValueError(
-            f"Claude returned invalid JSON. Raw response: {text[:500]}. Error: {str(e)}"
-        )
+    return parse_llm_json_object(text, "Claude")
 
 
 async def parse_receipt_image_fallback(
