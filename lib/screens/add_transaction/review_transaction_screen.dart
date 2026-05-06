@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants.dart';
 import '../../models/parsed_transaction.dart';
+import '../../services/budget_alert_service.dart';
 import '../../services/budget_service.dart';
-import '../../services/notification_service.dart';
 import '../../services/transaction_service.dart';
 
 class ReviewTransactionScreen extends StatefulWidget {
@@ -72,17 +72,12 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
             : _descriptionController.text.trim(),
         transactionDate: _date,
         inputMethod: widget.inputMethod,
-        receiptImageUrl: widget.parsed.receiptUrl,
+        receiptImageUrl: widget.parsed.persistentReceiptReference,
         rawLlmResponse: widget.parsed.rawLlmResponse,
       );
 
       final over = await _budgetService.getOverspentBudgets(month: _date);
-      if (over.any((b) => b.category == _category)) {
-        await NotificationService.instance.showLocalNotification(
-          title: 'Budget exceeded',
-          body: 'You have exceeded your $_category budget.',
-        );
-      }
+      await BudgetAlertService.instance.notifyNewOverspentBudgets(over, month: _date);
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -129,6 +124,25 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                   ),
                 ],
               ),
+              if (widget.parsed.lineItems.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Line items',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...widget.parsed.lineItems.map(
+                  (item) => ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item.name),
+                    trailing: Text('JMD ${item.price.toStringAsFixed(2)}'),
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               TextFormField(
                 controller: _merchantController,

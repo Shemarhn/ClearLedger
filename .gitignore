@@ -19,6 +19,8 @@ backend/.env.*
 !backend/.env.example
 **/google-services.json
 **/GoogleService-Info.plist
+android/key.properties
+key.properties
 *.jks
 *.keystore
 /ClearLedger.pdf

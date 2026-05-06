@@ -47,6 +47,7 @@ class ApiService {
       if (response.data['success'] == true) {
         final data = Map<String, dynamic>.from(response.data['data'] as Map);
         data['receipt_url'] = response.data['receipt_url'];
+        data['receipt_path'] = response.data['receipt_path'];
         data['raw_llm_response'] = response.data['raw_llm_response'];
         return ParsedTransaction.fromJson(data);
       } else {

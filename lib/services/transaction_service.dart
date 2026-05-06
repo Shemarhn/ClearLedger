@@ -13,32 +13,34 @@ class TransactionService {
     final user = supabase.auth.currentUser;
     if (user == null) return [];
 
-    final response = await supabase
-        .from('transactions')
-        .select()
-        .eq('user_id', user.id)
-        .order('transaction_date', ascending: false)
-        .order('created_at', ascending: false);
+    dynamic query = supabase.from('transactions').select().eq('user_id', user.id);
+    final trimmedSearch = searchQuery?.trim();
+    final safeSearch =
+        trimmedSearch == null || trimmedSearch.isEmpty ? '' : _postgrestSearchTerm(trimmedSearch);
 
-    var list = (response as List).map((e) => TransactionModel.fromJson(e)).toList();
+    if (trimmedSearch != null && trimmedSearch.isNotEmpty && safeSearch.isEmpty) {
+      return [];
+    }
 
     if (startDate != null) {
-      list = list.where((tx) => !tx.transactionDate.isBefore(startDate)).toList();
+      query = query.gte('transaction_date', _asDate(startDate));
     }
     if (endDate != null) {
-      list = list.where((tx) => !tx.transactionDate.isAfter(endDate)).toList();
+      query = query.lte('transaction_date', _asDate(endDate));
     }
     if (category != null && category != 'All Categories') {
-      list = list.where((tx) => tx.category == category).toList();
+      query = query.eq('category', category);
     }
-    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      final q = searchQuery.toLowerCase();
-      list = list.where((tx) {
-        final merchant = (tx.merchant ?? '').toLowerCase();
-        final description = (tx.description ?? '').toLowerCase();
-        return merchant.contains(q) || description.contains(q);
-      }).toList();
+    if (safeSearch.isNotEmpty) {
+      query = query.or('merchant.ilike.*$safeSearch*,description.ilike.*$safeSearch*');
     }
+
+    final response = await query
+        .order('transaction_date', ascending: false)
+        .order('created_at', ascending: false)
+        .limit(limit);
+
+    final list = (response as List).map((e) => TransactionModel.fromJson(e)).toList();
 
     return list.take(limit).toList();
   }
@@ -145,5 +147,12 @@ class TransactionService {
 
   String _asDate(DateTime date) {
     return "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
+  String _postgrestSearchTerm(String value) {
+    return value
+        .replaceAll(RegExp(r'[^A-Za-z0-9 .&-]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 }

@@ -24,6 +24,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, double> _categoryTotals = {};
   List<TransactionModel> _recent = [];
   List<BudgetModel> _budgets = [];
+  String? _error;
 
   @override
   void initState() {
@@ -33,20 +34,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final month = DateTime.now();
-    final total = await _txService.getTotalSpentForMonth(month);
-    final categories = await _txService.getCategoryTotalsForMonth(month);
-    final recent = await _txService.getRecentTransactions(limit: 5);
-    final budgets = await _budgetService.getBudgets(month: month);
+    try {
+      final month = DateTime.now();
+      final total = await _txService.getTotalSpentForMonth(month);
+      final categories = await _txService.getCategoryTotalsForMonth(month);
+      final recent = await _txService.getRecentTransactions(limit: 5);
+      final budgets = await _budgetService.getBudgets(month: month);
 
-    if (!mounted) return;
-    setState(() {
-      _totalSpent = total;
-      _categoryTotals = categories;
-      _recent = recent;
-      _budgets = budgets;
-      _loading = false;
-    });
+      if (!mounted) return;
+      setState(() {
+        _totalSpent = total;
+        _categoryTotals = categories;
+        _recent = recent;
+        _budgets = budgets;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
@@ -55,6 +63,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(title: const Text('Dashboard')),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Could not load dashboard: $_error'),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: _load,
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(

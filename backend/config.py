@@ -26,6 +26,10 @@ def get_cors_origins() -> list[str]:
     return [origin.strip() for origin in CORS_ORIGINS.split(",") if origin.strip()]
 
 
+def allow_cors_credentials() -> bool:
+    return "*" not in get_cors_origins()
+
+
 def validate_required_config() -> None:
     missing = []
     if not SUPABASE_URL:

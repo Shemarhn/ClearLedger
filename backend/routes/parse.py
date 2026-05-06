@@ -23,7 +23,7 @@ from services.image_preprocessing import (
     prepare_image_for_llm,
 )
 from services.text_fallback_service import parse_text_description_basic
-from services.transaction_normalizer import normalize_parsed_transaction
+from services.transaction_normalizer import normalize_parsed_transaction, sanitized_llm_payload
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ async def _parse_receipt_impl(
 
     # Upload to Supabase Storage
     receipt_url = None
+    receipt_path = None
     try:
         supabase = _get_supabase()
         storage_mime = declared_mime or prepared_image.mime_type
@@ -80,6 +81,7 @@ async def _parse_receipt_impl(
         # Get signed URL (valid for 1 hour)
         signed = supabase.storage.from_("receipts").create_signed_url(filename, 3600)
         receipt_url = signed.get("signedURL") or signed.get("signedUrl")
+        receipt_path = filename
     except Exception as e:
         logger.warning(f"Failed to upload receipt to storage: {e}")
         # Continue even if storage upload fails; parsing is more important
@@ -101,15 +103,15 @@ async def _parse_receipt_impl(
                 detail="Could not parse the receipt. Please try again or enter the transaction manually.",
             )
 
-    parsed = ParsedTransaction(
-        **normalize_parsed_transaction(result, include_line_items=True)
-    )
+    normalized = normalize_parsed_transaction(result, include_line_items=True)
+    parsed = ParsedTransaction(**normalized)
 
     return ParseReceiptResponse(
         success=True,
         data=parsed,
         receipt_url=receipt_url,
-        raw_llm_response=result,
+        receipt_path=receipt_path,
+        raw_llm_response=sanitized_llm_payload(normalized),
     )
 
 
@@ -143,11 +145,14 @@ async def _parse_text_impl(
                     detail="Could not parse the transaction description. Please try again.",
                 )
 
-    parsed = ParsedTransaction(
-        **normalize_parsed_transaction(result, include_line_items=False)
-    )
+    normalized = normalize_parsed_transaction(result, include_line_items=False)
+    parsed = ParsedTransaction(**normalized)
 
-    return ParseTextResponse(success=True, data=parsed, raw_llm_response=result)
+    return ParseTextResponse(
+        success=True,
+        data=parsed,
+        raw_llm_response=sanitized_llm_payload(normalized),
+    )
 
 
 @router.post("/parse-receipt", response_model=ParseReceiptResponse)

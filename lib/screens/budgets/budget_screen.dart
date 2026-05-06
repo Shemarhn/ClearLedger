@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../models/budget.dart';
+import '../../services/budget_alert_service.dart';
 import '../../services/budget_service.dart';
-import '../../services/notification_service.dart';
 import '../../widgets/budget_progress_bar.dart';
 import 'add_budget_screen.dart';
 
@@ -17,6 +17,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
   final _budgetService = BudgetService();
   List<BudgetModel> _budgets = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -26,26 +27,27 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final budgets = await _budgetService.getBudgets();
-    if (!mounted) return;
+    try {
+      final budgets = await _budgetService.getBudgets();
+      if (!mounted) return;
 
-    final overspent = budgets.where((b) => b.spent > b.monthlyLimit).toList();
-    if (overspent.isNotEmpty) {
-      await NotificationService.instance.showLocalNotification(
-        title: 'Budget alert',
-        body: 'You have ${overspent.length} over-budget categories this month.',
-      );
+      await BudgetAlertService.instance.notifyNewOverspentBudgets(budgets);
+
+      setState(() {
+        _budgets = budgets;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-
-    setState(() {
-      _budgets = budgets;
-      _loading = false;
-    });
   }
 
-  Future<void> _openAddBudget() async {
+  Future<void> _openAddBudget([BudgetModel? budget]) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AddBudgetScreen()),
+      MaterialPageRoute(builder: (_) => AddBudgetScreen(budget: budget)),
     );
     _load();
   }
@@ -56,11 +58,25 @@ class _BudgetScreenState extends State<BudgetScreen> {
       appBar: AppBar(
         title: const Text('Budgets'),
         actions: [
-          IconButton(onPressed: _openAddBudget, icon: const Icon(Icons.add)),
+          IconButton(onPressed: () => _openAddBudget(), icon: const Icon(Icons.add)),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? ListView(
+                  children: [
+                    const SizedBox(height: 100),
+                    Center(child: Text('Could not load budgets: $_error')),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: OutlinedButton(
+                        onPressed: _load,
+                        child: const Text('Retry'),
+                      ),
+                    ),
+                  ],
+                )
           : RefreshIndicator(
               onRefresh: _load,
               child: _budgets.isEmpty
@@ -74,7 +90,11 @@ class _BudgetScreenState extends State<BudgetScreen> {
                       padding: const EdgeInsets.all(12),
                       itemCount: _budgets.length,
                       itemBuilder: (context, index) {
-                        return BudgetProgressBar(budget: _budgets[index]);
+                        final budget = _budgets[index];
+                        return BudgetProgressBar(
+                          budget: budget,
+                          onTap: () => _openAddBudget(budget),
+                        );
                       },
                     ),
             ),

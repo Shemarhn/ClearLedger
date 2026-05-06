@@ -20,6 +20,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
 
   List<TransactionModel> _transactions = [];
   bool _loading = true;
+  String? _error;
   String _selectedCategory = 'All Categories';
 
   @override
@@ -43,7 +44,14 @@ class _LedgerScreenState extends State<LedgerScreen> {
         limit: 300,
       );
       if (mounted) {
-        setState(() => _transactions = rows);
+        setState(() {
+          _transactions = rows;
+          _error = null;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = error.toString());
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -105,6 +113,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                    ? ListView(
+                        children: [
+                          const SizedBox(height: 100),
+                          Center(child: Text('Could not load transactions: $_error')),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: OutlinedButton(
+                              onPressed: _loadTransactions,
+                              child: const Text('Retry'),
+                            ),
+                          ),
+                        ],
+                      )
                 : RefreshIndicator(
                     onRefresh: _loadTransactions,
                     child: _transactions.isEmpty
@@ -122,12 +144,15 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                                 child: TransactionTile(
                                   transaction: tx,
-                                  onTap: () {
-                                    Navigator.of(context).push(
+                                  onTap: () async {
+                                    final changed = await Navigator.of(context).push<bool>(
                                       MaterialPageRoute(
                                         builder: (_) => TransactionDetailScreen(transaction: tx),
                                       ),
                                     );
+                                    if (changed == true && mounted) {
+                                      _loadTransactions();
+                                    }
                                   },
                                 ),
                               );

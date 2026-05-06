@@ -27,6 +27,7 @@ class ParseReceiptResponse(BaseModel):
     success: bool
     data: ParsedTransaction
     receipt_url: Optional[str] = None
+    receipt_path: Optional[str] = None
     raw_llm_response: Optional[dict] = None
 
 

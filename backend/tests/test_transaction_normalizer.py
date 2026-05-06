@@ -1,6 +1,6 @@
 import unittest
 
-from services.transaction_normalizer import normalize_parsed_transaction
+from services.transaction_normalizer import normalize_parsed_transaction, sanitized_llm_payload
 
 
 class TransactionNormalizerTests(unittest.TestCase):
@@ -34,6 +34,21 @@ class TransactionNormalizerTests(unittest.TestCase):
         )
 
         self.assertEqual(normalized["line_items"], [])
+
+    def test_sanitized_payload_drops_unknown_fields(self):
+        normalized = normalize_parsed_transaction(
+            {
+                "merchant": "Shop",
+                "amount": 500,
+                "provider_trace": "do not store this",
+            },
+            include_line_items=True,
+        )
+
+        payload = sanitized_llm_payload(normalized)
+
+        self.assertEqual(payload["merchant"], "Shop")
+        self.assertNotIn("provider_trace", payload)
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ class ParsedTransaction {
   final List<LineItem> lineItems;
   final double confidence;
   final String? receiptUrl;
+  final String? receiptPath;
   final Map<String, dynamic>? rawLlmResponse;
 
   ParsedTransaction({
@@ -39,8 +40,11 @@ class ParsedTransaction {
     this.lineItems = const [],
     this.confidence = 0.0,
     this.receiptUrl,
+    this.receiptPath,
     this.rawLlmResponse,
   });
+
+  String? get persistentReceiptReference => receiptPath ?? receiptUrl;
 
   factory ParsedTransaction.fromJson(Map<String, dynamic> json) {
     return ParsedTransaction(
@@ -56,6 +60,7 @@ class ParsedTransaction {
           [],
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       receiptUrl: json['receipt_url'] as String?,
+      receiptPath: json['receipt_path'] as String?,
       rawLlmResponse: json['raw_llm_response'] as Map<String, dynamic>?,
     );
   }
@@ -70,6 +75,7 @@ class ParsedTransaction {
     'line_items': lineItems.map((e) => e.toJson()).toList(),
     'confidence': confidence,
     'receipt_url': receiptUrl,
+    'receipt_path': receiptPath,
     'raw_llm_response': rawLlmResponse,
   };
 
@@ -83,6 +89,7 @@ class ParsedTransaction {
     List<LineItem>? lineItems,
     double? confidence,
     String? receiptUrl,
+    String? receiptPath,
     Map<String, dynamic>? rawLlmResponse,
   }) {
     return ParsedTransaction(
@@ -95,6 +102,7 @@ class ParsedTransaction {
       lineItems: lineItems ?? this.lineItems,
       confidence: confidence ?? this.confidence,
       receiptUrl: receiptUrl ?? this.receiptUrl,
+      receiptPath: receiptPath ?? this.receiptPath,
       rawLlmResponse: rawLlmResponse ?? this.rawLlmResponse,
     );
   }

@@ -7,11 +7,13 @@ from io import BytesIO
 from typing import Optional
 
 from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL.Image import DecompressionBombError
 
 DIRECT_GEMINI_MIME_TYPES = {"image/heic", "image/heif"}
 LLM_INLINE_IMAGE_LIMIT_BYTES = 18 * 1024 * 1024
 JPEG_QUALITIES = (92, 86, 80, 72, 64)
 MAX_EDGES = (None, 8192, 6144, 4096, 3072, 2048)
+Image.MAX_IMAGE_PIXELS = 120_000_000
 
 
 class ImagePreparationError(ValueError):
@@ -69,6 +71,8 @@ def prepare_image_for_llm(image_bytes: bytes, declared_mime_type: Optional[str])
             return PreparedImage(data=image_bytes, mime_type=mime_type)
 
         raise ImagePreparationError("Unsupported or unreadable image. Use a clear photo or screenshot.")
+    except DecompressionBombError as error:
+        raise ImagePreparationError("The uploaded image is too large to process safely.") from error
 
 
 def _to_rgb(image: Image.Image) -> Image.Image:

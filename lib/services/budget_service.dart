@@ -88,10 +88,20 @@ class BudgetService {
   }
 
   // Update budget
-  Future<BudgetModel> updateBudget(String id, double monthlyLimit) async {
+  Future<BudgetModel> updateBudget(
+    String id, {
+    required String category,
+    required double monthlyLimit,
+    required DateTime month,
+  }) async {
     final response = await supabase
         .from('budgets')
-        .update({'monthly_limit': monthlyLimit})
+        .update({
+          'category': category,
+          'monthly_limit': monthlyLimit,
+          'month':
+              "${month.year}-${month.month.toString().padLeft(2, '0')}-${month.day.toString().padLeft(2, '0')}",
+        })
         .eq('id', id)
         .select()
         .single();

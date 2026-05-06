@@ -31,6 +31,22 @@ def normalize_parsed_transaction(result: Mapping[str, Any], include_line_items: 
     }
 
 
+def sanitized_llm_payload(normalized: Mapping[str, Any]) -> dict:
+    """Keep only fields the app uses instead of storing arbitrary provider output."""
+    payload = {
+        "merchant": normalized.get("merchant"),
+        "amount": normalized.get("amount"),
+        "currency": normalized.get("currency"),
+        "date": normalized.get("date"),
+        "category": normalized.get("category"),
+        "description": normalized.get("description"),
+        "line_items": normalized.get("line_items") or [],
+        "confidence": normalized.get("confidence"),
+    }
+
+    return {key: value for key, value in payload.items() if value is not None}
+
+
 def _clean_string(value: Any) -> str | None:
     if value is None:
         return None
