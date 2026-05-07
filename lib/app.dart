@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'core/theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'services/app_settings_service.dart';
 import 'services/auth_service.dart';
 import 'services/biometric_lock_service.dart';
 
@@ -16,12 +17,14 @@ class ClearLedgerApp extends StatefulWidget {
 class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObserver {
   final AuthService _authService = AuthService();
   final BiometricLockService _biometricLockService = BiometricLockService.instance;
+  final AppSettingsService _settingsService = AppSettingsService.instance;
   bool _authenticating = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _settingsService.load();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_authService.isLoggedIn) {
         _authenticateOnResume();
@@ -74,18 +77,24 @@ class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'ClearLedger',
-      theme: AppTheme.lightTheme,
-      home: StreamBuilder(
-        stream: _authService.authStateChanges,
-        builder: (context, snapshot) {
-          if (_authService.isLoggedIn) {
-            return const HomeScreen();
-          }
-          return const LoginScreen();
-        },
+    return AnimatedBuilder(
+      animation: _settingsService,
+      builder: (context, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'ClearLedger',
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: _settingsService.themeMode,
+        home: StreamBuilder(
+          stream: _authService.authStateChanges,
+          builder: (context, snapshot) {
+            if (_authService.isLoggedIn) {
+              _settingsService.load();
+              return const HomeScreen();
+            }
+            return const LoginScreen();
+          },
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import '../models/daily_overview.dart';
 import '../models/parsed_transaction.dart';
 import '../core/constants.dart';
 import '../core/supabase_client.dart';
@@ -94,6 +95,32 @@ class ApiService {
       if (e.response != null && e.response?.data != null) {
         final detail = e.response?.data['detail'];
         throw ApiException(detail?.toString() ?? "Server error processing text");
+      }
+      throw ApiException("Network error: ${e.message}");
+    }
+  }
+
+  Future<DailyOverview> generateDailyOverview() async {
+    final token = await _getToken();
+    if (token == null) throw ApiException("Not authenticated");
+
+    try {
+      final response = await _dio.post(
+        '/overview/daily',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          receiveTimeout: _receiptParseTimeout,
+        ),
+      );
+
+      if (response.data['success'] == true) {
+        return DailyOverview.fromJson(Map<String, dynamic>.from(response.data as Map));
+      }
+      throw ApiException("Failed to generate overview");
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        final detail = e.response?.data['detail'];
+        throw ApiException(detail?.toString() ?? "Server error generating overview");
       }
       throw ApiException("Network error: ${e.message}");
     }

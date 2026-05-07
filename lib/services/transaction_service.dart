@@ -7,6 +7,7 @@ class TransactionService {
     DateTime? startDate,
     DateTime? endDate,
     String? category,
+    TransactionType? transactionType,
     String? searchQuery,
     int limit = 50,
   }) async {
@@ -31,6 +32,9 @@ class TransactionService {
     if (category != null && category != 'All Categories') {
       query = query.eq('category', category);
     }
+    if (transactionType != null) {
+      query = query.eq('transaction_type', transactionType.value);
+    }
     if (safeSearch.isNotEmpty) {
       query = query.or('merchant.ilike.*$safeSearch*,description.ilike.*$safeSearch*');
     }
@@ -48,11 +52,20 @@ class TransactionService {
   // Create a new transaction
   Future<TransactionModel> createTransaction({
     required double amount,
+    String currency = 'JMD',
+    double? originalAmount,
+    String? originalCurrency,
+    double? exchangeRate,
+    TransactionType transactionType = TransactionType.expense,
     String? merchant,
     required String category,
     String? description,
     required DateTime transactionDate,
     required String inputMethod,
+    String? accountId,
+    String? destinationAccountId,
+    String? cardLast4,
+    double? feeAmount,
     String? receiptImageUrl,
     Map<String, dynamic>? rawLlmResponse,
   }) async {
@@ -62,12 +75,21 @@ class TransactionService {
     final data = {
       'user_id': user.id,
       'amount': amount,
+      'currency': currency,
+      'original_amount': originalAmount,
+      'original_currency': originalCurrency,
+      'exchange_rate': exchangeRate,
+      'transaction_type': transactionType.value,
       'merchant': merchant,
       'category': category,
       'description': description,
       'transaction_date':
           "${transactionDate.year}-${transactionDate.month.toString().padLeft(2, '0')}-${transactionDate.day.toString().padLeft(2, '0')}",
       'input_method': inputMethod,
+      'account_id': accountId,
+      'destination_account_id': destinationAccountId,
+      'card_last4': cardLast4,
+      'fee_amount': feeAmount,
       'receipt_image_url': receiptImageUrl,
       'raw_llm_response': rawLlmResponse,
     };
@@ -110,7 +132,7 @@ class TransactionService {
 
     final response = await supabase
         .from('transactions')
-        .select('amount')
+        .select('amount, transaction_type')
         .eq('user_id', user.id)
         .gte('transaction_date', _asDate(start))
         .lte('transaction_date', _asDate(end));
@@ -118,8 +140,34 @@ class TransactionService {
     final list = response as List;
     return list.fold<double>(
       0,
-      (sum, item) => sum + ((item['amount'] as num?)?.toDouble() ?? 0),
+      (sum, item) {
+        final type = transactionTypeFromString(item['transaction_type'] as String?);
+        if (type != TransactionType.expense) return sum;
+        return sum + ((item['amount'] as num?)?.toDouble() ?? 0);
+      },
     );
+  }
+
+  Future<double> getTotalIncomeForMonth(DateTime month) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return 0;
+
+    final start = DateTime(month.year, month.month, 1);
+    final end = DateTime(month.year, month.month + 1, 0);
+
+    final response = await supabase
+        .from('transactions')
+        .select('amount, transaction_type')
+        .eq('user_id', user.id)
+        .gte('transaction_date', _asDate(start))
+        .lte('transaction_date', _asDate(end));
+
+    final list = response as List;
+    return list.fold<double>(0, (sum, item) {
+      final type = transactionTypeFromString(item['transaction_type'] as String?);
+      if (!type.isInflow) return sum;
+      return sum + ((item['amount'] as num?)?.toDouble() ?? 0);
+    });
   }
 
   Future<Map<String, double>> getCategoryTotalsForMonth(DateTime month) async {
@@ -131,7 +179,7 @@ class TransactionService {
 
     final response = await supabase
         .from('transactions')
-        .select('category, amount')
+        .select('category, amount, transaction_type')
         .eq('user_id', user.id)
         .gte('transaction_date', _asDate(start))
         .lte('transaction_date', _asDate(end));
@@ -140,6 +188,8 @@ class TransactionService {
     for (final row in (response as List)) {
       final category = row['category'] as String? ?? 'Other';
       final amount = (row['amount'] as num?)?.toDouble() ?? 0;
+      final type = transactionTypeFromString(row['transaction_type'] as String?);
+      if (type != TransactionType.expense) continue;
       totals[category] = (totals[category] ?? 0) + amount;
     }
     return totals;

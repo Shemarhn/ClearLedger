@@ -15,12 +15,17 @@ class LineItem(BaseModel):
 class ParsedTransaction(BaseModel):
     merchant: Optional[str] = None
     amount: Optional[float] = None
+    transaction_type: str = "expense"
     currency: str = "JMD"
     date: Optional[str] = None
     category: str = "Other"
     description: Optional[str] = None
     line_items: list[LineItem] = Field(default_factory=list)
     confidence: float = 0.0
+    account_hint: Optional[str] = None
+    destination_account_hint: Optional[str] = None
+    card_last4: Optional[str] = None
+    fee_amount: Optional[float] = None
 
 
 class ParseReceiptResponse(BaseModel):
@@ -52,3 +57,13 @@ class BudgetCheckResult(BaseModel):
     total_spent: float
     percentage: float
     over_budget: bool
+
+
+class DailyOverviewResponse(BaseModel):
+    success: bool
+    generated_for: str
+    summary: str
+    insights: list[str] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)
+    totals: dict = Field(default_factory=dict)
+    raw_llm_response: Optional[dict] = None

@@ -171,14 +171,18 @@ def prepare_receipt_ocr_text(ocr_text: str) -> str:
 
 def extract_receipt_candidates(ocr_text: str) -> dict[str, Any]:
     lines = _receipt_lines(ocr_text)
+    full_text = "\n".join(lines)
     amount_candidates = _amount_candidates(lines)
     merchant_candidates = _merchant_candidates(lines)
     date_candidates = _date_candidates(lines)
     line_item_candidates = _line_item_candidates(lines)
-    currency = _detect_currency("\n".join(lines))
+    currency = _detect_currency(full_text)
+    movement = _detect_transaction_type(full_text)
+    card_last4 = _detect_card_last4(full_text)
+    fee_amount = _detect_fee_amount(lines)
     category_guess = _guess_category(
         " ".join(candidate.value for candidate in merchant_candidates[:2]),
-        "\n".join(lines),
+        full_text,
     )
 
     best_amount = amount_candidates[0].amount if amount_candidates else None
@@ -203,8 +207,13 @@ def extract_receipt_candidates(ocr_text: str) -> dict[str, Any]:
             "amount": best_amount,
             "currency": currency,
             "date": best_date,
-            "category": category_guess,
+            "category": "Other" if movement != "expense" else category_guess,
             "line_items": line_item_candidates[:12],
+            "transaction_type": movement,
+            "card_last4": card_last4,
+            "fee_amount": fee_amount,
+            "account_hint": "card account" if card_last4 else None,
+            "destination_account_hint": _destination_hint_for_movement(movement),
         },
     }
 
@@ -244,12 +253,17 @@ def parse_receipt_text_basic(
     return {
         "merchant": merchant,
         "amount": amount,
+        "transaction_type": best_guess.get("transaction_type") or "expense",
         "currency": best_guess.get("currency") or candidates.get("currency_guess") or "JMD",
         "date": best_guess.get("date"),
         "category": category,
         "description": description,
         "line_items": line_items,
         "confidence": min(confidence, 0.85),
+        "account_hint": best_guess.get("account_hint"),
+        "destination_account_hint": best_guess.get("destination_account_hint"),
+        "card_last4": best_guess.get("card_last4"),
+        "fee_amount": best_guess.get("fee_amount"),
         "source": "receipt_text_rules",
     }
 
@@ -289,6 +303,8 @@ def reconcile_receipt_result(
         reconciled["date"] = best_guess["date"]
     if not _clean_string(reconciled.get("currency")):
         reconciled["currency"] = best_guess.get("currency") or candidates.get("currency_guess") or "JMD"
+    if not _clean_string(reconciled.get("transaction_type")):
+        reconciled["transaction_type"] = best_guess.get("transaction_type") or "expense"
     if not _clean_string(reconciled.get("category")) or str(reconciled.get("category")).lower() == "other":
         reconciled["category"] = best_guess.get("category") or candidates.get("category_guess") or "Other"
     if not reconciled.get("line_items") and best_guess.get("line_items"):
@@ -299,6 +315,17 @@ def reconcile_receipt_result(
         reconciled["description"] = (
             f"Receipt transaction at {merchant}" if merchant else "Receipt transaction"
         )
+    if not _clean_string(reconciled.get("card_last4")) and best_guess.get("card_last4"):
+        reconciled["card_last4"] = best_guess["card_last4"]
+    if not _clean_string(reconciled.get("account_hint")) and best_guess.get("account_hint"):
+        reconciled["account_hint"] = best_guess["account_hint"]
+    if (
+        not _clean_string(reconciled.get("destination_account_hint"))
+        and best_guess.get("destination_account_hint")
+    ):
+        reconciled["destination_account_hint"] = best_guess["destination_account_hint"]
+    if _coerce_float(reconciled.get("fee_amount")) is None and best_guess.get("fee_amount"):
+        reconciled["fee_amount"] = best_guess["fee_amount"]
 
     return reconciled
 
@@ -558,6 +585,52 @@ def _detect_currency(text: str) -> str:
     if "usd" in lowered or "us$" in lowered:
         return "USD"
     return "JMD"
+
+
+def _detect_transaction_type(text: str) -> str:
+    lowered = text.lower()
+    if any(keyword in lowered for keyword in ("withdrawal", "wdl", "cash withdrawal", "atm w/d")):
+        return "withdrawal"
+    if any(keyword in lowered for keyword in ("deposit", "cash deposit", "atm dep")):
+        return "deposit"
+    if any(keyword in lowered for keyword in ("refund", "reversal", "return")):
+        return "refund"
+    if any(keyword in lowered for keyword in ("salary", "payroll", "income")):
+        return "income"
+    if any(keyword in lowered for keyword in ("transfer", "xfer")):
+        return "transfer"
+    return "expense"
+
+
+def _destination_hint_for_movement(movement: str) -> str | None:
+    if movement == "withdrawal":
+        return "cash"
+    if movement == "deposit":
+        return "bank account"
+    return None
+
+
+def _detect_card_last4(text: str) -> str | None:
+    patterns = (
+        r"(?:card|acct|account|pan|visa|mastercard)[^\n\r\d]{0,12}(?:x+|\*+|#+)?\s*(\d{4})\b",
+        r"(?:x{2,}|\*{2,}|#{2,})\s*(\d{4})\b",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
+
+
+def _detect_fee_amount(lines: list[str]) -> float | None:
+    for line in lines:
+        lowered = line.lower()
+        if not any(keyword in lowered for keyword in ("fee", "charge", "service")):
+            continue
+        amounts = _extract_amounts(line)
+        if amounts:
+            return amounts[-1]
+    return None
 
 
 def _guess_category(merchant_text: str, full_text: str) -> str:

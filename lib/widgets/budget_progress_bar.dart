@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/constants.dart';
 import '../models/budget.dart';
+import '../services/app_settings_service.dart';
 
 class BudgetProgressBar extends StatelessWidget {
   const BudgetProgressBar({
@@ -20,6 +21,9 @@ class BudgetProgressBar extends StatelessWidget {
     final color = percent > 1
         ? AppConstants.errorRed
         : AppConstants.categoryColors[budget.category] ?? AppConstants.accentColor;
+    final currency = AppSettingsService.instance.preferredCurrency;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final muted = onSurface.withValues(alpha: 0.62);
 
     return Card(
       child: InkWell(
@@ -33,15 +37,25 @@ class BudgetProgressBar extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    budget.category,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: Text(
+                      budget.category,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
-                  Text(
-                    'JMD ${budget.spent.toStringAsFixed(2)} / ${budget.monthlyLimit.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: percent > 1 ? AppConstants.errorRed : Colors.black87,
-                      fontWeight: FontWeight.w600,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      '$currency ${budget.spent.toStringAsFixed(2)} / ${budget.monthlyLimit.toStringAsFixed(2)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: TextStyle(
+                        color: percent > 1 ? AppConstants.errorRed : onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -57,7 +71,7 @@ class BudgetProgressBar extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 '${(percent * 100).toStringAsFixed(1)}% used',
-                style: const TextStyle(color: Colors.black54),
+                style: TextStyle(color: muted),
               ),
             ],
           ),

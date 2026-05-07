@@ -43,6 +43,21 @@ def _parse_category(text: str) -> str:
     return "Other"
 
 
+def _parse_transaction_type(text: str) -> str:
+    lowered = text.lower()
+    if any(word in lowered for word in ("withdraw", "withdrawal", "atm")):
+        return "withdrawal"
+    if "deposit" in lowered:
+        return "deposit"
+    if any(word in lowered for word in ("salary", "payroll", "paid me", "income")):
+        return "income"
+    if any(word in lowered for word in ("transfer", "moved", "move money")):
+        return "transfer"
+    if any(word in lowered for word in ("refund", "reversal", "returned")):
+        return "refund"
+    return "expense"
+
+
 def _parse_merchant(text: str, category: str) -> str | None:
     match = re.search(
         r"\b(?:at|from|in|on|for)\s+(?:a|an|the)?\s*([A-Za-z][A-Za-z0-9&' -]{1,40})",
@@ -67,15 +82,17 @@ def _parse_merchant(text: str, category: str) -> str | None:
 def parse_text_description_basic(user_text: str) -> dict:
     """Parse straightforward transaction text without calling an external LLM."""
     amount, currency = _parse_amount(user_text)
+    transaction_type = _parse_transaction_type(user_text)
     category = _parse_category(user_text)
     merchant = _parse_merchant(user_text, category)
 
     return {
         "merchant": merchant,
         "amount": amount,
+        "transaction_type": transaction_type,
         "currency": currency,
         "date": _parse_date(user_text),
-        "category": category,
+        "category": "Other" if transaction_type != "expense" else category,
         "description": user_text.strip(),
         "confidence": 0.45,
         "source": "local_fallback",

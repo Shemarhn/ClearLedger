@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants.dart';
+import '../../models/account.dart';
 import '../../models/budget.dart';
 import '../../models/transaction.dart';
+import '../../services/account_service.dart';
+import '../../services/app_settings_service.dart';
 import '../../services/budget_service.dart';
 import '../../services/transaction_service.dart';
 import '../../widgets/budget_progress_bar.dart';
-import '../../widgets/spending_chart.dart';
+import '../../widgets/dark_shell.dart';
 import '../../widgets/transaction_tile.dart';
+import '../settings/settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,12 +23,14 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   final _txService = TransactionService();
   final _budgetService = BudgetService();
+  final _accountService = AccountService();
 
   bool _loading = true;
   double _totalSpent = 0;
-  Map<String, double> _categoryTotals = {};
+  double _totalIncome = 0;
   List<TransactionModel> _recent = [];
   List<BudgetModel> _budgets = [];
+  AccountBalanceSummary? _summary;
   String? _error;
 
   @override
@@ -37,16 +44,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final month = DateTime.now();
       final total = await _txService.getTotalSpentForMonth(month);
-      final categories = await _txService.getCategoryTotalsForMonth(month);
+      final income = await _txService.getTotalIncomeForMonth(month);
       final recent = await _txService.getRecentTransactions(limit: 5);
       final budgets = await _budgetService.getBudgets(month: month);
+      AccountBalanceSummary? summary;
+      try {
+        summary = await _accountService.getBalanceSummary();
+      } catch (_) {
+        summary = null;
+      }
 
       if (!mounted) return;
       setState(() {
         _totalSpent = total;
-        _categoryTotals = categories;
+        _totalIncome = income;
         _recent = recent;
         _budgets = budgets;
+        _summary = summary;
         _error = null;
       });
     } catch (error) {
@@ -60,90 +74,291 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+      body: DarkShell(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _ErrorState(message: _error!, onRetry: _load)
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: ListView(
                       children: [
-                        Text('Could not load dashboard: $_error'),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                          onPressed: _load,
-                          child: const Text('Retry'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(16),
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF073B4C), Color(0xFF118AB2)],
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Spent this month',
-                          style: TextStyle(color: Colors.white70),
+                        _Header(onSettings: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                          );
+                        }),
+                        const SizedBox(height: 18),
+                        _NetWorthCard(summary: _summary, spent: _totalSpent, income: _totalIncome),
+                        const SizedBox(height: 18),
+                        _AccountStrip(accounts: _summary?.accounts ?? const []),
+                        const SizedBox(height: 22),
+                        _SectionTitle(
+                          title: 'Recent activity',
+                          trailing: '${_recent.length} items',
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          'JMD ${_totalSpent.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 30,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                        if (_recent.isEmpty)
+                          const FinanceCard(child: Text('No transactions yet.'))
+                        else
+                          ..._recent.map((tx) => TransactionTile(transaction: tx)),
+                        const SizedBox(height: 18),
+                        const _SectionTitle(title: 'Budget pulse'),
+                        const SizedBox(height: 8),
+                        if (_budgets.isEmpty)
+                          const FinanceCard(
+                            child: Text('No budgets set for this month.'),
+                          )
+                        else
+                          ..._budgets.take(3).map((b) => BudgetProgressBar(budget: b)),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: SpendingChart(categoryTotals: _categoryTotals),
-                    ),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.onSettings});
+
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ClearLedger',
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Money movement, neatly tracked',
+                style: TextStyle(color: AppConstants.darkMuted),
+              ),
+            ],
+          ),
+        ),
+        IconButton.filledTonal(
+          onPressed: onSettings,
+          icon: const Icon(Icons.settings_outlined),
+        ),
+      ],
+    );
+  }
+}
+
+class _NetWorthCard extends StatelessWidget {
+  const _NetWorthCard({
+    required this.summary,
+    required this.spent,
+    required this.income,
+  });
+
+  final AccountBalanceSummary? summary;
+  final double spent;
+  final double income;
+
+  @override
+  Widget build(BuildContext context) {
+    final currency = AppSettingsService.instance.preferredCurrency;
+    return FinanceCard(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Net worth', style: TextStyle(color: AppConstants.darkMuted)),
+          const SizedBox(height: 8),
+          AmountText(
+            amount: summary?.netWorth ?? income - spent,
+            currency: currency,
+            compact: false,
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _MiniMetric(
+                  label: 'Inflow',
+                  value: '+$currency ${income.toStringAsFixed(0)}',
+                  color: AppConstants.successGreen,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _MiniMetric(
+                  label: 'Spent',
+                  value: '-$currency ${spent.toStringAsFixed(0)}',
+                  color: AppConstants.errorRed,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniMetric extends StatelessWidget {
+  const _MiniMetric({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: dark
+            ? Colors.white.withValues(alpha: 0.06)
+            : AppConstants.mint.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(color: AppConstants.darkMuted, fontSize: 12)),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: color, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AccountStrip extends StatelessWidget {
+  const _AccountStrip({required this.accounts});
+
+  final List<AccountModel> accounts;
+
+  @override
+  Widget build(BuildContext context) {
+    final preferredCurrency = AppSettingsService.instance.preferredCurrency;
+    if (accounts.isEmpty) {
+      return const FinanceCard(
+        child: Text('Create accounts to track cash, banks, and cards.'),
+      );
+    }
+
+    return SizedBox(
+      height: 118,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: accounts.take(5).length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final account = accounts[index];
+          return SizedBox(
+            width: 208,
+            child: FinanceCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(_iconForAccount(account.type), color: AppConstants.mint),
+                  const Spacer(),
+                  Text(
+                    account.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Recent transactions',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  const SizedBox(height: 4),
+                  AmountText(
+                    amount: account.currentBalance,
+                    currency: account.currency.isNotEmpty ? account.currency : preferredCurrency,
+                    compact: true,
+                    color: account.currentBalance < 0
+                        ? AppConstants.errorRed
+                        : Theme.of(context).colorScheme.onSurface,
                   ),
-                  const SizedBox(height: 8),
-                  ..._recent.map((tx) => TransactionTile(transaction: tx)),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Budget usage',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  if (_budgets.isEmpty)
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(14),
-                        child: Text('No budgets set for this month.'),
-                      ),
-                    )
-                  else
-                    ..._budgets.map((b) => BudgetProgressBar(budget: b)),
                 ],
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  IconData _iconForAccount(AccountType type) {
+    switch (type) {
+      case AccountType.cash:
+        return Icons.payments_outlined;
+      case AccountType.checking:
+      case AccountType.savings:
+        return Icons.account_balance_outlined;
+      case AccountType.credit:
+        return Icons.credit_card_outlined;
+      case AccountType.wallet:
+        return Icons.account_balance_wallet_outlined;
+      case AccountType.other:
+        return Icons.savings_outlined;
+    }
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle({required this.title, this.trailing});
+
+  final String title;
+  final String? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+        ),
+        if (trailing != null)
+          Text(trailing!, style: const TextStyle(color: AppConstants.darkMuted)),
+      ],
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: FinanceCard(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Could not load dashboard: $message'),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
     );
   }
 }

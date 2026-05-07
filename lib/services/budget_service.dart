@@ -1,4 +1,5 @@
 import '../models/budget.dart';
+import '../models/transaction.dart';
 import '../core/supabase_client.dart';
 
 class BudgetService {
@@ -25,7 +26,7 @@ class BudgetService {
     // 2. Fetch spending for those budgets
     final txResponse = await supabase
         .from('transactions')
-        .select('category, amount')
+        .select('category, amount, transaction_type')
         .eq('user_id', user.id)
         .gte(
           'transaction_date',
@@ -38,6 +39,8 @@ class BudgetService {
 
     final categoryTotals = <String, double>{};
     for (var tx in (txResponse as List)) {
+      final type = transactionTypeFromString(tx['transaction_type'] as String?);
+      if (type != TransactionType.expense) continue;
       final category = tx['category'] as String;
       final amount = (tx['amount'] as num).toDouble();
       categoryTotals[category] = (categoryTotals[category] ?? 0.0) + amount;

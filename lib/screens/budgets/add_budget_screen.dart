@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/constants.dart';
 import '../../models/budget.dart';
+import '../../services/app_settings_service.dart';
 import '../../services/budget_service.dart';
 
 class AddBudgetScreen extends StatefulWidget {
@@ -143,6 +144,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
   @override
   Widget build(BuildContext context) {
     final busy = _saving || _deleting;
+    final currency = AppSettingsService.instance.preferredCurrency;
 
     return Scaffold(
       appBar: AppBar(title: Text(_editing ? 'Edit Budget' : 'Add Budget')),
@@ -163,7 +165,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
               controller: _amountController,
               enabled: !busy,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Monthly limit (JMD)'),
+              decoration: InputDecoration(labelText: 'Monthly limit ($currency)'),
             ),
             const SizedBox(height: 12),
             Row(

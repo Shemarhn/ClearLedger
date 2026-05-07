@@ -22,6 +22,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
   late final TextEditingController _merchantController;
   late final TextEditingController _amountController;
   late final TextEditingController _descriptionController;
+  late TransactionType _transactionType;
   late String _category;
   late DateTime _date;
 
@@ -39,6 +40,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     _descriptionController = TextEditingController(
       text: widget.transaction.description ?? '',
     );
+    _transactionType = widget.transaction.transactionType;
     _category = AppConstants.categories.contains(widget.transaction.category)
         ? widget.transaction.category
         : 'Other';
@@ -63,6 +65,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
         widget.transaction.id,
         {
           'amount': amount,
+          'transaction_type': _transactionType.value,
           'merchant': _merchantController.text.trim().isEmpty
               ? null
               : _merchantController.text.trim(),
@@ -196,7 +199,24 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _detail('Merchant', widget.transaction.merchant ?? 'Unknown'),
-        _detail('Amount', 'JMD ${widget.transaction.amount.toStringAsFixed(2)}'),
+        _detail('Type', widget.transaction.transactionType.label),
+        _detail(
+          'Amount',
+          '${widget.transaction.currency} ${widget.transaction.amount.toStringAsFixed(2)}',
+        ),
+        if (widget.transaction.originalAmount != null &&
+            widget.transaction.originalCurrency != null)
+          _detail(
+            'Original amount',
+            '${widget.transaction.originalCurrency} ${widget.transaction.originalAmount!.toStringAsFixed(2)}',
+          ),
+        if (widget.transaction.cardLast4 != null)
+          _detail('Card', '****${widget.transaction.cardLast4}'),
+        if (widget.transaction.feeAmount != null)
+          _detail(
+            'Fee',
+            '${widget.transaction.currency} ${widget.transaction.feeAmount!.toStringAsFixed(2)}',
+          ),
         _detail('Category', widget.transaction.category),
         _detail('Description', widget.transaction.description ?? '-'),
         _detail('Date', DateFormat.yMMMMd().format(widget.transaction.transactionDate)),
@@ -210,7 +230,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(item.name),
-              trailing: Text('JMD ${item.price.toStringAsFixed(2)}'),
+              trailing: Text('${widget.transaction.currency} ${item.price.toStringAsFixed(2)}'),
             ),
           ),
         ],
@@ -237,6 +257,15 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
               if (double.tryParse(value.trim()) == null) return 'Enter a valid number';
               return null;
             },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<TransactionType>(
+            initialValue: _transactionType,
+            items: TransactionType.values
+                .map((type) => DropdownMenuItem(value: type, child: Text(type.label)))
+                .toList(),
+            onChanged: (value) => setState(() => _transactionType = value ?? TransactionType.expense),
+            decoration: const InputDecoration(labelText: 'Type'),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(

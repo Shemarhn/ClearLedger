@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../models/transaction.dart';
 import '../../services/transaction_service.dart';
-import '../../widgets/category_chip.dart';
+import '../../widgets/dark_shell.dart';
 import '../../widgets/transaction_tile.dart';
 import 'transaction_detail_screen.dart';
 
@@ -21,7 +21,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
   List<TransactionModel> _transactions = [];
   bool _loading = true;
   String? _error;
-  String _selectedCategory = 'All Categories';
+  TransactionType? _selectedType;
 
   @override
   void initState() {
@@ -39,7 +39,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
     setState(() => _loading = true);
     try {
       final rows = await _txService.getTransactions(
-        category: _selectedCategory,
+        transactionType: _selectedType,
         searchQuery: _searchController.text.trim(),
         limit: 300,
       );
@@ -61,106 +61,102 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ledger')),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
+      body: DarkShell(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Ledger',
+              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Expenses, inflows, deposits, withdrawals, and transfers',
+              style: TextStyle(color: AppConstants.darkMuted),
+            ),
+            const SizedBox(height: 16),
+            TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search merchant or description',
+                hintText: 'Search merchant, account, or card digits',
+                prefixIcon: const Icon(Icons.search),
                 suffixIcon: IconButton(
                   onPressed: _loadTransactions,
-                  icon: const Icon(Icons.search),
+                  icon: const Icon(Icons.arrow_forward),
                 ),
               ),
               onSubmitted: (_) => _loadTransactions(),
             ),
-          ),
-          SizedBox(
-            height: 46,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              children: [
-                CategoryChip(
-                  category: 'All Categories',
-                  selected: _selectedCategory == 'All Categories',
-                  onTap: () {
-                    setState(() => _selectedCategory = 'All Categories');
-                    _loadTransactions();
-                  },
-                ),
-                const SizedBox(width: 8),
-                ...AppConstants.categories.map(
-                  (category) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: CategoryChip(
-                      category: category,
-                      selected: _selectedCategory == category,
-                      onTap: () {
-                        setState(() => _selectedCategory = category);
-                        _loadTransactions();
-                      },
-                    ),
-                  ),
-                ),
-              ],
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 40,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _typeChip(null, 'All'),
+                  ...TransactionType.values.map((type) => _typeChip(type, type.label)),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _error != null
-                    ? ListView(
-                        children: [
-                          const SizedBox(height: 100),
-                          Center(child: Text('Could not load transactions: $_error')),
-                          const SizedBox(height: 12),
-                          Center(
-                            child: OutlinedButton(
-                              onPressed: _loadTransactions,
-                              child: const Text('Retry'),
-                            ),
-                          ),
-                        ],
-                      )
-                : RefreshIndicator(
-                    onRefresh: _loadTransactions,
-                    child: _transactions.isEmpty
-                        ? ListView(
-                            children: [
-                              SizedBox(height: 100),
-                              Center(child: Text('No transactions found.')),
-                            ],
-                          )
-                        : ListView.builder(
-                            itemCount: _transactions.length,
-                            itemBuilder: (context, index) {
-                              final tx = _transactions[index];
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                                child: TransactionTile(
-                                  transaction: tx,
-                                  onTap: () async {
-                                    final changed = await Navigator.of(context).push<bool>(
-                                      MaterialPageRoute(
-                                        builder: (_) => TransactionDetailScreen(transaction: tx),
-                                      ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? ListView(
+                          children: [
+                            const SizedBox(height: 80),
+                            FinanceCard(child: Text('Could not load transactions: $_error')),
+                          ],
+                        )
+                      : RefreshIndicator(
+                          onRefresh: _loadTransactions,
+                          child: _transactions.isEmpty
+                              ? ListView(
+                                  children: const [
+                                    SizedBox(height: 80),
+                                    FinanceCard(child: Text('No transactions found.')),
+                                  ],
+                                )
+                              : ListView.builder(
+                                  itemCount: _transactions.length,
+                                  itemBuilder: (context, index) {
+                                    final tx = _transactions[index];
+                                    return TransactionTile(
+                                      transaction: tx,
+                                      onTap: () async {
+                                        final changed = await Navigator.of(context).push<bool>(
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                TransactionDetailScreen(transaction: tx),
+                                          ),
+                                        );
+                                        if (changed == true && mounted) {
+                                          _loadTransactions();
+                                        }
+                                      },
                                     );
-                                    if (changed == true && mounted) {
-                                      _loadTransactions();
-                                    }
                                   },
                                 ),
-                              );
-                            },
-                          ),
-                  ),
-          ),
-        ],
+                        ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _typeChip(TransactionType? type, String label) {
+    final selected = _selectedType == type;
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        selected: selected,
+        label: Text(label),
+        onSelected: (_) {
+          setState(() => _selectedType = type);
+          _loadTransactions();
+        },
       ),
     );
   }

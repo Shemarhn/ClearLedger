@@ -17,17 +17,31 @@ ALLOWED_CATEGORIES = {
     "Other",
 }
 
+ALLOWED_TRANSACTION_TYPES = {
+    "expense",
+    "income",
+    "transfer",
+    "withdrawal",
+    "deposit",
+    "refund",
+}
+
 
 def normalize_parsed_transaction(result: Mapping[str, Any], include_line_items: bool) -> dict:
     return {
         "merchant": _clean_string(result.get("merchant")),
         "amount": _coerce_float(result.get("amount")),
+        "transaction_type": _coerce_transaction_type(result.get("transaction_type")),
         "currency": _coerce_currency(result.get("currency")),
         "date": _clean_string(result.get("date")),
         "category": _coerce_category(result.get("category")),
         "description": _clean_string(result.get("description")),
         "line_items": _coerce_line_items(result.get("line_items")) if include_line_items else [],
         "confidence": _coerce_confidence(result.get("confidence")),
+        "account_hint": _clean_string(result.get("account_hint")),
+        "destination_account_hint": _clean_string(result.get("destination_account_hint")),
+        "card_last4": _coerce_card_last4(result.get("card_last4")),
+        "fee_amount": _coerce_float(result.get("fee_amount")),
     }
 
 
@@ -36,12 +50,17 @@ def sanitized_llm_payload(normalized: Mapping[str, Any]) -> dict:
     payload = {
         "merchant": normalized.get("merchant"),
         "amount": normalized.get("amount"),
+        "transaction_type": normalized.get("transaction_type"),
         "currency": normalized.get("currency"),
         "date": normalized.get("date"),
         "category": normalized.get("category"),
         "description": normalized.get("description"),
         "line_items": normalized.get("line_items") or [],
         "confidence": normalized.get("confidence"),
+        "account_hint": normalized.get("account_hint"),
+        "destination_account_hint": normalized.get("destination_account_hint"),
+        "card_last4": normalized.get("card_last4"),
+        "fee_amount": normalized.get("fee_amount"),
     }
 
     return {key: value for key, value in payload.items() if value is not None}
@@ -79,6 +98,34 @@ def _coerce_category(value: Any) -> str:
             return category
 
     return "Other"
+
+
+def _coerce_transaction_type(value: Any) -> str:
+    cleaned = _clean_string(value)
+    if cleaned is None:
+        return "expense"
+
+    normalized = cleaned.lower().replace(" ", "_")
+    aliases = {
+        "cash_withdrawal": "withdrawal",
+        "atm_withdrawal": "withdrawal",
+        "cash_deposit": "deposit",
+        "bank_deposit": "deposit",
+        "reversal": "refund",
+    }
+    normalized = aliases.get(normalized, normalized)
+    return normalized if normalized in ALLOWED_TRANSACTION_TYPES else "expense"
+
+
+def _coerce_card_last4(value: Any) -> str | None:
+    cleaned = _clean_string(value)
+    if cleaned is None:
+        return None
+
+    digits = re.sub(r"\D", "", cleaned)
+    if len(digits) < 4:
+        return None
+    return digits[-4:]
 
 
 def _coerce_line_items(value: Any) -> list[dict]:

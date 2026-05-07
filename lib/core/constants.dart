@@ -49,6 +49,13 @@ class AppConstants {
   static const Color accentColor = Color(0xFF118AB2);
   static const Color background = Color(0xFFF4F7F5);
   static const Color surface = Colors.white;
+  static const Color darkBackground = Color(0xFF07110F);
+  static const Color darkSurface = Color(0xFF101B18);
+  static const Color darkSurfaceHigh = Color(0xFF182622);
+  static const Color darkStroke = Color(0xFF263A34);
+  static const Color darkText = Color(0xFFF1F6F2);
+  static const Color darkMuted = Color(0xFF9DAEA6);
+  static const Color mint = Color(0xFF17D5B3);
   static const Color errorRed = Color(0xFFE63946);
   static const Color successGreen = Color(0xFF2A9D8F);
   static const Color warningAmber = Color(0xFFF4A261);
