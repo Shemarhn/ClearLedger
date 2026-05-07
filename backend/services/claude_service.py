@@ -1,10 +1,12 @@
 """Fallback LLM provider using Anthropic Claude Sonnet."""
 
 from datetime import date
+import json
 
 import anthropic
 from config import ANTHROPIC_API_KEY
 from services.llm_json import parse_llm_json_object
+from services.receipt_text_parser import receipt_prompt_payload
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -18,6 +20,26 @@ RECEIPT_SYSTEM_PROMPT = """You are a financial data extraction assistant. Extrac
 - confidence (number): 0 to 1 indicating how confident you are in the extraction
 
 Return ONLY the raw JSON object. No explanation, no markdown."""
+
+RECEIPT_TEXT_SYSTEM_PROMPT = """You are parsing OCR text extracted from a receipt.
+
+Return ONLY a valid JSON object with these fields:
+- merchant (string or null)
+- amount (number or null): the final amount paid or due
+- currency (string): 3-letter currency code, default to "JMD" if unclear
+- date (string or null): YYYY-MM-DD
+- category (string): exactly one of Food, Transport, Utilities, Entertainment, Healthcare, Shopping, Education, Other
+- description (string): one concise sentence
+- line_items (array): objects with "name" and "price", or empty array
+- confidence (number): 0 to 1
+
+Rules:
+- Use the OCR text and parser candidates only. Do not invent values.
+- Prefer lines labeled TOTAL, GRAND TOTAL, AMOUNT DUE, BALANCE DUE, AMOUNT PAID, or SALE TOTAL.
+- Ignore SUBTOTAL, TAX, GCT, VAT, CHANGE, DISCOUNT, SAVINGS, CASH TENDERED, and POINTS as final totals.
+- If multiple totals are plausible, choose the best parser candidate and lower confidence.
+- The category should be based on merchant, line items, and keywords.
+- Return raw JSON only. No markdown, prose, or code fences."""
 
 TEXT_SYSTEM_PROMPT_TEMPLATE = """You are a financial transaction parser. The user will describe a transaction in natural language. Extract the transaction details and return ONLY a valid JSON object with these fields:
 - merchant (string): the store or business name, or null if not mentioned
@@ -78,6 +100,31 @@ async def parse_receipt_image_fallback(
     response_text = message.content[0].text
     if not response_text:
         raise ValueError("Claude returned an empty response for the receipt image.")
+
+    return _clean_json_response(response_text)
+
+
+async def parse_receipt_text_fallback(ocr_text: str, candidates: dict) -> dict:
+    """Fallback: parse OCR receipt text with Claude."""
+    payload = receipt_prompt_payload(ocr_text, candidates)
+    message = client.messages.create(
+        model="claude-sonnet-4-20250514",
+        max_tokens=1024,
+        system=RECEIPT_TEXT_SYSTEM_PROMPT,
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    "Parse this receipt OCR payload and return only JSON:\n"
+                    f"{json.dumps(payload, ensure_ascii=False)}"
+                ),
+            }
+        ],
+    )
+
+    response_text = message.content[0].text
+    if not response_text:
+        raise ValueError("Claude returned an empty response for receipt OCR text.")
 
     return _clean_json_response(response_text)
 

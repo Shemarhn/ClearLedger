@@ -5,15 +5,15 @@ from datetime import datetime
 from mimetypes import guess_type
 import uuid
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from supabase import create_client
 
 from auth import get_user_id
 from config import SUPABASE_SECRET_KEY, SUPABASE_URL
 from models import ParseReceiptResponse, ParseTextResponse, ParsedTransaction, TextInput
-from services.gemma_service import parse_receipt_image, parse_text_description
+from services.gemma_service import parse_receipt_text, parse_text_description
 from services.claude_service import (
-    parse_receipt_image_fallback,
+    parse_receipt_text_fallback,
     parse_text_description_fallback,
 )
 from services.image_preprocessing import (
@@ -21,6 +21,12 @@ from services.image_preprocessing import (
     extension_for_mime,
     normalize_mime_type,
     prepare_image_for_llm,
+)
+from services.receipt_text_parser import (
+    extract_receipt_candidates,
+    parse_receipt_text_basic,
+    prepare_receipt_ocr_text,
+    reconcile_receipt_result,
 )
 from services.text_fallback_service import parse_text_description_basic
 from services.transaction_normalizer import normalize_parsed_transaction, sanitized_llm_payload
@@ -38,11 +44,12 @@ def _get_supabase():
 
 async def _parse_receipt_impl(
     file: UploadFile = File(...),
+    ocr_text: str = Form(""),
     user_id: str = Depends(get_user_id),
 ):
     """
-    Accept a receipt image, upload to Supabase Storage, send to Gemma,
-    and return structured transaction data.
+    Accept a receipt image and OCR text, store the image, parse OCR text, and
+    return structured transaction data.
     """
     image_bytes = await file.read()
     if len(image_bytes) > MAX_UPLOAD_SIZE:
@@ -58,6 +65,16 @@ async def _parse_receipt_impl(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(error),
+        )
+
+    prepared_ocr_text = prepare_receipt_ocr_text(ocr_text)
+    if len(prepared_ocr_text) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "No readable receipt text was detected. Please retake the receipt "
+                "or enter the transaction manually."
+            ),
         )
 
     # Upload to Supabase Storage
@@ -86,22 +103,24 @@ async def _parse_receipt_impl(
         logger.warning(f"Failed to upload receipt to storage: {e}")
         # Continue even if storage upload fails; parsing is more important
 
-    # Parse with Gemma (try fallback on failure)
+    candidates = extract_receipt_candidates(prepared_ocr_text)
+
+    # Parse OCR text with Gemma. If providers fail, use deterministic candidates.
     try:
-        result = await parse_receipt_image(prepared_image.data, prepared_image.mime_type)
+        result = await parse_receipt_text(prepared_ocr_text, candidates)
     except Exception as gemma_error:
         logger.warning(f"Gemma failed, trying Claude fallback: {gemma_error}")
         try:
-            result = await parse_receipt_image_fallback(
-                prepared_image.data,
-                prepared_image.mime_type,
-            )
+            result = await parse_receipt_text_fallback(prepared_ocr_text, candidates)
         except Exception as claude_error:
-            logger.error(f"Both LLMs failed. Gemma: {gemma_error}, Claude: {claude_error}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Could not parse the receipt. Please try again or enter the transaction manually.",
+            logger.error(
+                "Both receipt text LLMs failed. "
+                f"Gemma: {gemma_error}, Claude: {claude_error}. "
+                "Using deterministic receipt parser."
             )
+            result = parse_receipt_text_basic(prepared_ocr_text, candidates)
+
+    result = reconcile_receipt_result(result, candidates)
 
     normalized = normalize_parsed_transaction(result, include_line_items=True)
     parsed = ParsedTransaction(**normalized)
@@ -156,16 +175,21 @@ async def _parse_text_impl(
 
 
 @router.post("/parse-receipt", response_model=ParseReceiptResponse)
-async def parse_receipt(file: UploadFile = File(...), user_id: str = Depends(get_user_id)):
-    return await _parse_receipt_impl(file=file, user_id=user_id)
+async def parse_receipt(
+    file: UploadFile = File(...),
+    ocr_text: str = Form(""),
+    user_id: str = Depends(get_user_id),
+):
+    return await _parse_receipt_impl(file=file, ocr_text=ocr_text, user_id=user_id)
 
 
 @router.post("/parse/receipt", response_model=ParseReceiptResponse)
 async def parse_receipt_alias(
     file: UploadFile = File(...),
+    ocr_text: str = Form(""),
     user_id: str = Depends(get_user_id),
 ):
-    return await _parse_receipt_impl(file=file, user_id=user_id)
+    return await _parse_receipt_impl(file=file, ocr_text=ocr_text, user_id=user_id)
 
 
 @router.post("/parse-text", response_model=ParseTextResponse)

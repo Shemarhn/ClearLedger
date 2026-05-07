@@ -2,12 +2,14 @@
 import asyncio
 from datetime import date
 from io import BytesIO
+import json
 
 from google import genai
 from google.genai import types
 
 from config import GEMMA_API_KEY, GEMMA_MODEL
 from services.llm_json import parse_llm_json_object
+from services.receipt_text_parser import receipt_prompt_payload
 
 RECEIPT_SYSTEM_PROMPT = """You are a financial data extraction assistant. Extract transaction details from this receipt or transaction screenshot. Return ONLY a valid JSON object with these fields:
 - merchant (string): the store or business name
@@ -25,13 +27,16 @@ def _get_client() -> genai.Client:
     return genai.Client(api_key=GEMMA_API_KEY)
 
 
-def _generation_config() -> types.GenerateContentConfig:
-    return types.GenerateContentConfig(
-        temperature=0.1,
-        max_output_tokens=1024,
-        response_mime_type="application/json",
-        media_resolution=types.MediaResolution.MEDIA_RESOLUTION_HIGH,
-    )
+def _generation_config(*, media_resolution: bool = False) -> types.GenerateContentConfig:
+    config = {
+        "temperature": 0.1,
+        "max_output_tokens": 1024,
+        "response_mime_type": "application/json",
+    }
+    if media_resolution:
+        config["media_resolution"] = types.MediaResolution.MEDIA_RESOLUTION_HIGH
+
+    return types.GenerateContentConfig(**config)
 
 
 def _generate_content(contents: list) -> str:
@@ -64,7 +69,7 @@ def _generate_image_content(image_bytes: bytes, mime_type: str) -> str:
         response = client.models.generate_content(
             model=GEMMA_MODEL,
             contents=[uploaded_file, RECEIPT_SYSTEM_PROMPT],
-            config=_generation_config(),
+            config=_generation_config(media_resolution=True),
         )
     finally:
         if uploaded_file and uploaded_file.name:
@@ -77,6 +82,40 @@ def _generate_image_content(image_bytes: bytes, mime_type: str) -> str:
         raise ValueError("Gemma returned an empty response.")
 
     return response.text
+
+
+RECEIPT_TEXT_SYSTEM_PROMPT = """You are parsing OCR text extracted from a receipt.
+
+Return ONLY a valid JSON object with these fields:
+- merchant (string or null)
+- amount (number or null): the final amount paid or due
+- currency (string): 3-letter currency code, default to "JMD" if unclear
+- date (string or null): YYYY-MM-DD
+- category (string): exactly one of Food, Transport, Utilities, Entertainment, Healthcare, Shopping, Education, Other
+- description (string): one concise sentence
+- line_items (array): objects with "name" and "price", or empty array
+- confidence (number): 0 to 1
+
+Rules:
+- Use the OCR text and parser candidates only. Do not invent values.
+- Prefer lines labeled TOTAL, GRAND TOTAL, AMOUNT DUE, BALANCE DUE, AMOUNT PAID, or SALE TOTAL.
+- Ignore SUBTOTAL, TAX, GCT, VAT, CHANGE, DISCOUNT, SAVINGS, CASH TENDERED, and POINTS as final totals.
+- If multiple totals are plausible, choose the best parser candidate and lower confidence.
+- The category should be based on merchant, line items, and keywords.
+- Return raw JSON only. No markdown, prose, or code fences."""
+
+
+async def parse_receipt_text(ocr_text: str, candidates: dict) -> dict:
+    """Parse OCR receipt text using Gemma text-only inference."""
+    payload = receipt_prompt_payload(ocr_text, candidates)
+    prompt = (
+        f"{RECEIPT_TEXT_SYSTEM_PROMPT}\n\n"
+        "Receipt OCR payload:\n"
+        f"{json.dumps(payload, ensure_ascii=False)}"
+    )
+
+    response_text = await asyncio.to_thread(_generate_content, [prompt])
+    return parse_llm_json_object(response_text, "Gemma")
 
 
 TEXT_SYSTEM_PROMPT_TEMPLATE = """You are a financial transaction parser. The user will describe a transaction in natural language. Extract the transaction details and return ONLY a valid JSON object with these fields:

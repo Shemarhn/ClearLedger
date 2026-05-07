@@ -12,6 +12,8 @@ class ApiException implements Exception {
 }
 
 class ApiService {
+  static const _receiptParseTimeout = Duration(seconds: 120);
+
   final Dio _dio;
 
   ApiService()
@@ -26,13 +28,17 @@ class ApiService {
     return session?.accessToken;
   }
 
-  Future<ParsedTransaction> processReceiptImage(File image) async {
+  Future<ParsedTransaction> processReceiptImage(
+    File image, {
+    required String ocrText,
+  }) async {
     final token = await _getToken();
     if (token == null) throw ApiException("Not authenticated");
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(image.path,
           filename: image.path.split(Platform.pathSeparator).last),
+      'ocr_text': ocrText,
     });
 
     try {
@@ -41,6 +47,8 @@ class ApiService {
         data: formData,
         options: Options(
           headers: {'Authorization': 'Bearer $token'},
+          sendTimeout: _receiptParseTimeout,
+          receiveTimeout: _receiptParseTimeout,
         ),
       );
 

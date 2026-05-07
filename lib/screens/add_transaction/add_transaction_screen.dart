@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../services/api_service.dart';
+import '../../services/ocr_service.dart';
 import 'review_transaction_screen.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -17,11 +18,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _apiService = ApiService();
+  final _ocrService = OcrService();
   final _picker = ImagePicker();
   final _textController = TextEditingController();
 
   bool _loadingImage = false;
   bool _loadingText = false;
+  String? _imageStatus;
 
   @override
   void initState() {
@@ -37,12 +40,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   }
 
   Future<void> _pickAndParse(ImageSource source) async {
-    setState(() => _loadingImage = true);
+    setState(() {
+      _loadingImage = true;
+      _imageStatus = null;
+    });
     try {
       final image = await _picker.pickImage(source: source, imageQuality: 80);
       if (image == null) return;
 
-      final parsed = await _apiService.processReceiptImage(File(image.path));
+      final imageFile = File(image.path);
+      if (mounted) {
+        setState(() => _imageStatus = 'Reading receipt text...');
+      }
+      final ocrResult = await _ocrService.readReceipt(imageFile);
+      if (mounted) {
+        setState(() => _imageStatus = 'Parsing receipt...');
+      }
+      final parsed = await _apiService.processReceiptImage(
+        imageFile,
+        ocrText: ocrResult.text,
+      );
       if (!mounted) return;
 
       final saved = await Navigator.of(context).push<bool>(
@@ -64,7 +81,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         SnackBar(content: Text('Receipt parsing failed: $e')),
       );
     } finally {
-      if (mounted) setState(() => _loadingImage = false);
+      if (mounted) {
+        setState(() {
+          _loadingImage = false;
+          _imageStatus = null;
+        });
+      }
     }
   }
 
@@ -145,6 +167,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                 if (_loadingImage) ...[
                   const SizedBox(height: 20),
                   const Center(child: CircularProgressIndicator()),
+                  if (_imageStatus != null) ...[
+                    const SizedBox(height: 12),
+                    Center(child: Text(_imageStatus!)),
+                  ],
                 ],
               ],
             ),
