@@ -50,6 +50,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
     );
   }
 
+  Future<void> _editAccount(AccountModel account) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _AccountSheet(account: account, onSaved: _load),
+    );
+  }
+
   Future<void> _linkCard(AccountModel account) async {
     final controller = TextEditingController();
     await showDialog<void>(
@@ -98,29 +106,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 onRefresh: _load,
                 child: ListView(
                   children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Accounts',
-                                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Cash, banks, cards, and routing rules',
-                                style: TextStyle(color: AppConstants.darkMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton.filled(
-                          onPressed: _addAccount,
-                          icon: const Icon(Icons.add),
-                        ),
-                      ],
+                    ScreenHeader(
+                      title: 'Accounts',
+                      subtitle: 'Cash, banks, cards, and routing rules',
+                      icon: Icons.account_balance_wallet_outlined,
+                      trailing: IconButton.filled(
+                        onPressed: _addAccount,
+                        icon: const Icon(Icons.add),
+                      ),
                     ),
                     const SizedBox(height: 18),
                     if (_error != null)
@@ -140,7 +133,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                             ),
                             const SizedBox(height: 8),
                             const Text(
-                              'Create a cash account, then add bank or card accounts.',
+                              'Cash, bank, and card accounts will appear here.',
                               style: TextStyle(color: AppConstants.darkMuted),
                             ),
                             const SizedBox(height: 14),
@@ -158,27 +151,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _AccountCard(
                             account: account,
+                            onEdit: () => _editAccount(account),
                             onLinkCard: () => _linkCard(account),
                           ),
                         ),
                       ),
                     const SizedBox(height: 18),
-                    const FinanceCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'How automatic routing works',
-                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
-                          ),
-                          SizedBox(height: 10),
-                          Text(
-                            'If a receipt shows linked card digits, ClearLedger assigns the transaction to that account. ATM withdrawals move money from that account into cash. Deposits move cash into the bank account.',
-                            style: TextStyle(color: AppConstants.darkMuted, height: 1.35),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -190,10 +168,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
 class _AccountCard extends StatelessWidget {
   const _AccountCard({
     required this.account,
+    required this.onEdit,
     required this.onLinkCard,
   });
 
   final AccountModel account;
+  final VoidCallback onEdit;
   final VoidCallback onLinkCard;
 
   @override
@@ -205,11 +185,7 @@ class _AccountCard extends StatelessWidget {
     return FinanceCard(
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: AppConstants.mint.withValues(alpha: 0.16),
-            child: Icon(_iconFor(account.type), color: AppConstants.mint),
-          ),
+          AppIconBadge(icon: _iconFor(account.type)),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -247,7 +223,13 @@ class _AccountCard extends StatelessWidget {
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              TextButton(onPressed: onLinkCard, child: const Text('Link card')),
+              Wrap(
+                spacing: 4,
+                children: [
+                  TextButton(onPressed: onEdit, child: const Text('Edit')),
+                  TextButton(onPressed: onLinkCard, child: const Text('Link')),
+                ],
+              ),
             ],
           ),
         ],
@@ -273,8 +255,9 @@ class _AccountCard extends StatelessWidget {
 }
 
 class _AccountSheet extends StatefulWidget {
-  const _AccountSheet({required this.onSaved});
+  const _AccountSheet({this.account, required this.onSaved});
 
+  final AccountModel? account;
   final VoidCallback onSaved;
 
   @override
@@ -283,11 +266,27 @@ class _AccountSheet extends StatefulWidget {
 
 class _AccountSheetState extends State<_AccountSheet> {
   final _name = TextEditingController();
-  final _opening = TextEditingController(text: '0');
+  final _opening = TextEditingController();
   final _service = AccountService();
   AccountType _type = AccountType.checking;
+  String _currency = AppSettingsService.instance.preferredCurrency;
   bool _cashDefault = false;
   bool _saving = false;
+
+  bool get _editing => widget.account != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final account = widget.account;
+    _name.text = account?.name ?? '';
+    _opening.text = account?.openingBalance.toStringAsFixed(2) ?? '0';
+    _type = account?.type ?? AccountType.checking;
+    _currency = account?.currency.isNotEmpty == true
+        ? account!.currency
+        : AppSettingsService.instance.preferredCurrency;
+    _cashDefault = account?.isDefaultCash ?? false;
+  }
 
   @override
   void dispose() {
@@ -300,20 +299,33 @@ class _AccountSheetState extends State<_AccountSheet> {
     if (_name.text.trim().isEmpty) return;
     setState(() => _saving = true);
     try {
-      await _service.createAccount(
-        name: _name.text.trim(),
-        type: _type,
-        openingBalance: double.tryParse(_opening.text.trim()) ?? 0,
-        currency: AppSettingsService.instance.preferredCurrency,
-        isDefaultCash: _cashDefault,
-      );
+      final openingBalance = double.tryParse(_opening.text.trim()) ?? 0;
+      final account = widget.account;
+      if (account == null) {
+        await _service.createAccount(
+          name: _name.text.trim(),
+          type: _type,
+          openingBalance: openingBalance,
+          currency: _currency,
+          isDefaultCash: _cashDefault,
+        );
+      } else {
+        await _service.updateAccount(
+          accountId: account.id,
+          name: _name.text.trim(),
+          type: _type,
+          openingBalance: openingBalance,
+          currency: _currency,
+          isDefaultCash: _cashDefault,
+        );
+      }
       widget.onSaved();
       if (!mounted) return;
       Navigator.pop(context);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not add account: $error')),
+        SnackBar(content: Text('Could not save account: $error')),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -322,8 +334,7 @@ class _AccountSheetState extends State<_AccountSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final currency = AppSettingsService.instance.preferredCurrency;
-    return Padding(
+    return SingleChildScrollView(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -332,8 +343,13 @@ class _AccountSheetState extends State<_AccountSheet> {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('Add account', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+          Text(
+            _editing ? 'Edit account' : 'Add account',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 16),
           TextField(controller: _name, decoration: const InputDecoration(labelText: 'Name')),
           const SizedBox(height: 12),
@@ -346,10 +362,21 @@ class _AccountSheetState extends State<_AccountSheet> {
             decoration: const InputDecoration(labelText: 'Type'),
           ),
           const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: _currency,
+            items: AppSettingsService.supportedCurrencies
+                .map((currency) => DropdownMenuItem(value: currency, child: Text(currency)))
+                .toList(),
+            onChanged: (value) {
+              if (value != null) setState(() => _currency = value);
+            },
+            decoration: const InputDecoration(labelText: 'Account currency'),
+          ),
+          const SizedBox(height: 12),
           TextField(
             controller: _opening,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(labelText: 'Opening balance ($currency)'),
+            decoration: InputDecoration(labelText: 'Opening balance ($_currency)'),
           ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
@@ -359,7 +386,7 @@ class _AccountSheetState extends State<_AccountSheet> {
           ),
           ElevatedButton(
             onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Saving...' : 'Save account'),
+            child: Text(_saving ? 'Saving...' : (_editing ? 'Save changes' : 'Save account')),
           ),
         ],
       ),

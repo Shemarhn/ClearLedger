@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../core/constants.dart';
 import '../models/transaction.dart';
+import 'dark_shell.dart';
 
 class TransactionTile extends StatelessWidget {
   const TransactionTile({
@@ -25,28 +26,32 @@ class TransactionTile extends StatelessWidget {
             : '-';
     final dark = Theme.of(context).brightness == Brightness.dark;
     final surface = dark ? AppConstants.darkSurface : Theme.of(context).colorScheme.surface;
-    final stroke = dark ? AppConstants.darkStroke : const Color(0xFFDCE6E1);
+    final stroke = dark ? AppConstants.darkStroke : AppConstants.lightStroke;
     final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: stroke),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: dark ? 0.18 : 0.05),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor: color.withValues(alpha: 0.16),
-          child: Icon(_iconForType(transaction.transactionType), color: color),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        leading: AppIconBadge(icon: _iconForType(transaction.transactionType), color: color),
         title: Text(
           transaction.merchant ?? transaction.transactionType.label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         subtitle: Text(
           '${transaction.transactionType.label} - ${transaction.category} - $dateText',
@@ -61,7 +66,7 @@ class TransactionTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
-            style: TextStyle(color: color, fontWeight: FontWeight.w900),
+            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 15),
           ),
         ),
       ),

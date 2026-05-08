@@ -4,37 +4,58 @@ import 'package:google_fonts/google_fonts.dart';
 import 'constants.dart';
 
 class AppTheme {
-  static ThemeData get lightTheme {
+  static ThemeData get lightTheme => lightThemeFor();
+
+  static ThemeData get darkTheme => darkThemeFor();
+
+  static ThemeData lightThemeFor([ColorScheme? dynamicScheme]) {
     final textTheme = GoogleFonts.interTextTheme(ThemeData.light().textTheme);
+    final scheme = _colorScheme(Brightness.light, dynamicScheme);
 
     return _baseTheme(
+      colorScheme: scheme,
       brightness: Brightness.light,
       textTheme: textTheme,
-      scaffoldBackgroundColor: AppConstants.background,
-      surface: AppConstants.surface,
-      surfaceHigh: const Color(0xFFF0F5F2),
-      stroke: const Color(0xFFDCE6E1),
-      onSurface: const Color(0xFF17211E),
-      muted: const Color(0xFF66756F),
+      scaffoldBackgroundColor: scheme.surface,
+      surface: scheme.surfaceContainerLowest,
+      surfaceHigh: scheme.surfaceContainerHighest,
+      stroke: scheme.outlineVariant,
+      onSurface: scheme.onSurface,
+      muted: scheme.onSurfaceVariant,
     );
   }
 
-  static ThemeData get darkTheme {
+  static ThemeData darkThemeFor([ColorScheme? dynamicScheme]) {
     final textTheme = GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
+    final scheme = _colorScheme(Brightness.dark, dynamicScheme);
 
     return _baseTheme(
+      colorScheme: scheme,
       brightness: Brightness.dark,
       textTheme: textTheme,
-      scaffoldBackgroundColor: AppConstants.darkBackground,
-      surface: AppConstants.darkSurface,
-      surfaceHigh: AppConstants.darkSurfaceHigh,
-      stroke: AppConstants.darkStroke,
-      onSurface: AppConstants.darkText,
-      muted: AppConstants.darkMuted,
+      scaffoldBackgroundColor: scheme.surface,
+      surface: scheme.surfaceContainerLow,
+      surfaceHigh: scheme.surfaceContainerHighest,
+      stroke: scheme.outlineVariant,
+      onSurface: scheme.onSurface,
+      muted: scheme.onSurfaceVariant,
     );
+  }
+
+  static ColorScheme _colorScheme(
+    Brightness brightness,
+    ColorScheme? dynamicScheme,
+  ) {
+    return (dynamicScheme ??
+            ColorScheme.fromSeed(
+              seedColor: AppConstants.dynamicSeed,
+              brightness: brightness,
+            ))
+        .copyWith(error: AppConstants.errorRed);
   }
 
   static ThemeData _baseTheme({
+    required ColorScheme colorScheme,
     required Brightness brightness,
     required TextTheme textTheme,
     required Color scaffoldBackgroundColor,
@@ -44,21 +65,14 @@ class AppTheme {
     required Color onSurface,
     required Color muted,
   }) {
+    final accentText = colorScheme.primary;
+
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
       scaffoldBackgroundColor: scaffoldBackgroundColor,
       textTheme: textTheme,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppConstants.mint,
-        brightness: brightness,
-      ).copyWith(
-        primary: AppConstants.mint,
-        secondary: AppConstants.successGreen,
-        surface: surface,
-        error: AppConstants.errorRed,
-        onSurface: onSurface,
-      ),
+      colorScheme: colorScheme,
       appBarTheme: AppBarTheme(
         backgroundColor: scaffoldBackgroundColor,
         elevation: 0,
@@ -71,70 +85,124 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         color: surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         elevation: 0,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surfaceHigh,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
         labelStyle: TextStyle(color: muted),
         hintStyle: TextStyle(color: muted),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(color: stroke),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           borderSide: BorderSide(color: stroke),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppConstants.mint),
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: colorScheme.primary, width: 1.6),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppConstants.mint,
-          foregroundColor: Colors.black,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          minimumSize: const Size.fromHeight(48),
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          disabledBackgroundColor: surfaceHigh,
+          disabledForegroundColor: muted,
+          elevation: 0,
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          minimumSize: const Size.fromHeight(54),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: onSurface,
           side: BorderSide(color: stroke),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          minimumSize: const Size.fromHeight(48),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          minimumSize: const Size.fromHeight(54),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: colorScheme.primary,
+          foregroundColor: colorScheme.onPrimary,
+          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: accentText,
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: surface,
-        indicatorColor: AppConstants.mint.withValues(alpha: 0.16),
+        elevation: 0,
+        height: 82,
+        indicatorColor: colorScheme.primaryContainer,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.selected)
-                ? AppConstants.mint
-                : AppConstants.darkMuted,
+                ? accentText
+                : muted,
             fontSize: 11,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w800,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? AppConstants.mint
-                : AppConstants.darkMuted,
+                ? accentText
+                : muted,
+            size: 28,
           ),
         ),
       ),
+      chipTheme: ChipThemeData(
+        backgroundColor: surfaceHigh,
+        selectedColor: colorScheme.primaryContainer,
+        side: BorderSide(color: stroke),
+        labelStyle: TextStyle(color: onSurface, fontWeight: FontWeight.w700),
+        secondaryLabelStyle: TextStyle(color: onSurface, fontWeight: FontWeight.w800),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colorScheme.onPrimary
+              : Colors.white,
+        ),
+        trackColor: WidgetStateProperty.resolveWith(
+          (states) => states.contains(WidgetState.selected)
+              ? colorScheme.primary
+              : surfaceHigh,
+        ),
+      ),
+      dividerTheme: DividerThemeData(color: stroke, space: 24),
       drawerTheme: DrawerThemeData(
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+      ),
       listTileTheme: ListTileThemeData(
         iconColor: muted,
         textColor: onSurface,
+        titleTextStyle: TextStyle(color: onSurface, fontWeight: FontWeight.w800),
+        subtitleTextStyle: TextStyle(color: muted),
       ),
     );
   }

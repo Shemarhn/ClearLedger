@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../../core/constants.dart';
 import '../../models/parsed_transaction.dart';
 import '../../services/api_service.dart';
 import '../../services/ocr_service.dart';
@@ -17,9 +16,7 @@ class AddTransactionScreen extends StatefulWidget {
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _AddTransactionScreenState extends State<AddTransactionScreen> {
   final _apiService = ApiService();
   final _ocrService = OcrService();
   final _picker = ImagePicker();
@@ -30,14 +27,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   String? _imageStatus;
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
-
-  @override
   void dispose() {
-    _tabController.dispose();
     _textController.dispose();
     super.dispose();
   }
@@ -119,50 +109,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final surface = dark ? AppConstants.darkSurface : Theme.of(context).colorScheme.surface;
-    final stroke = dark ? AppConstants.darkStroke : const Color(0xFFDCE6E1);
     return Scaffold(
       body: DarkShell(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
-            const Text(
-              'Add movement',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Receipt, ATM slip, deposit, income, or transfer',
-              style: TextStyle(color: AppConstants.darkMuted),
+            const ScreenHeader(
+              title: 'Add movement',
+              subtitle: 'Scan a receipt or describe the movement',
+              icon: Icons.add_box_outlined,
             ),
             const SizedBox(height: 18),
-            Container(
-              decoration: BoxDecoration(
-                color: surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: stroke),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(icon: Icon(Icons.document_scanner_outlined), text: 'Photo'),
-                  Tab(icon: Icon(Icons.edit_note_outlined), text: 'Text'),
-                ],
-              ),
-            ),
+            _photoMode(),
             const SizedBox(height: 18),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _photoMode(),
-                  _textMode(),
-                ],
-              ),
-            ),
+            _textMode(),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -170,87 +130,86 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   }
 
   Widget _photoMode() {
-    return ListView(
-      children: [
-        FinanceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.receipt_long_outlined, color: AppConstants.mint, size: 32),
-              const SizedBox(height: 12),
-              const Text(
-                'Read a receipt or ATM slip',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'ClearLedger runs OCR first, then classifies the movement as expense, income, deposit, withdrawal, or transfer.',
-                style: TextStyle(color: AppConstants.darkMuted, height: 1.35),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton.icon(
-                onPressed: _loadingImage ? null : () => _pickAndParse(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Take photo'),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _loadingImage ? null : () => _pickAndParse(ImageSource.gallery),
-                icon: const Icon(Icons.image_outlined),
-                label: const Text('Choose from gallery'),
-              ),
-              if (_loadingImage) ...[
-                const SizedBox(height: 18),
-                const LinearProgressIndicator(),
-                if (_imageStatus != null) ...[
-                  const SizedBox(height: 10),
-                  Text(_imageStatus!, style: const TextStyle(color: AppConstants.darkMuted)),
-                ],
-              ],
-            ],
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
+    return FinanceCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppIconBadge(icon: Icons.receipt_long_outlined, size: 50),
+          const SizedBox(height: 18),
+          const Text(
+            'Read a receipt or ATM slip',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            'Receipts, ATM slips, card purchases, and cash movements stay in one place.',
+            style: TextStyle(color: muted, height: 1.35, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 22),
+          ElevatedButton.icon(
+            onPressed: _loadingImage ? null : () => _pickAndParse(ImageSource.camera),
+            icon: const Icon(Icons.camera_alt_outlined),
+            label: const Text('Take photo'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _loadingImage ? null : () => _pickAndParse(ImageSource.gallery),
+            icon: const Icon(Icons.image_outlined),
+            label: const Text('Open gallery'),
+          ),
+          if (_loadingImage) ...[
+            const SizedBox(height: 18),
+            const LinearProgressIndicator(),
+            if (_imageStatus != null) ...[
+              const SizedBox(height: 10),
+              Text(_imageStatus!, style: TextStyle(color: muted, fontWeight: FontWeight.w700)),
+            ],
+          ],
+        ],
+      ),
     );
   }
 
   Widget _textMode() {
-    return ListView(
-      children: [
-        FinanceCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Describe the movement',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Examples: Salary deposit of 85000 to Scotia. ATM withdrawal 10000 from NCB. Lunch 1500 cash.',
-                style: TextStyle(color: AppConstants.darkMuted, height: 1.35),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _textController,
-                maxLines: 5,
-                decoration: const InputDecoration(hintText: 'Type transaction details...'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadingText ? null : _parseText,
-                child: _loadingText
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text('Parse movement'),
-              ),
-            ],
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
+    return FinanceCard(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AppIconBadge(icon: Icons.edit_note_outlined, size: 50),
+          const SizedBox(height: 18),
+          const Text(
+            'Insert text',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
           ),
-        ),
-      ],
+          const SizedBox(height: 8),
+          Text(
+            'For salary deposits, withdrawals, cash lunches, and quick corrections.',
+            style: TextStyle(color: muted, height: 1.35, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _textController,
+            maxLines: 5,
+            decoration: const InputDecoration(hintText: 'Type movement details...'),
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: _loadingText ? null : _parseText,
+            icon: const Icon(Icons.auto_awesome_outlined),
+            label: _loadingText
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Parse movement'),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -86,14 +86,10 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                 onRefresh: _load,
                 child: ListView(
                   children: [
-                    const Text(
-                      'AI Overview',
-                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'A once-daily read on your money habits',
-                      style: TextStyle(color: AppConstants.darkMuted),
+                    const ScreenHeader(
+                      title: 'AI Overview',
+                      subtitle: 'A once-daily read on your money habits',
+                      icon: Icons.auto_awesome_outlined,
                     ),
                     const SizedBox(height: 18),
                     FinanceCard(
@@ -102,7 +98,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.auto_awesome, color: AppConstants.mint),
+                              const AppIconBadge(icon: Icons.auto_awesome, size: 42),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
@@ -274,7 +270,7 @@ class _InsightCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, color: AppConstants.mint),
+              AppIconBadge(icon: icon, size: 40),
               const SizedBox(width: 8),
               Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
             ],
@@ -290,8 +286,8 @@ class _InsightCard extends StatelessWidget {
                     width: 6,
                     height: 6,
                     margin: const EdgeInsets.only(top: 7, right: 10),
-                    decoration: const BoxDecoration(
-                      color: AppConstants.mint,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
                       shape: BoxShape.circle,
                     ),
                   ),

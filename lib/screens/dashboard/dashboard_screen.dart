@@ -93,7 +93,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(height: 18),
                         _AccountStrip(accounts: _summary?.accounts ?? const []),
                         const SizedBox(height: 22),
-                        _SectionTitle(
+                        SectionHeading(
                           title: 'Recent activity',
                           trailing: '${_recent.length} items',
                         ),
@@ -103,7 +103,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         else
                           ..._recent.map((tx) => TransactionTile(transaction: tx)),
                         const SizedBox(height: 18),
-                        const _SectionTitle(title: 'Budget pulse'),
+                        const SectionHeading(title: 'Budget pulse'),
                         const SizedBox(height: 8),
                         if (_budgets.isEmpty)
                           const FinanceCard(
@@ -127,29 +127,14 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'ClearLedger',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-              ),
-              SizedBox(height: 4),
-              Text(
-                'Money movement, neatly tracked',
-                style: TextStyle(color: AppConstants.darkMuted),
-              ),
-            ],
-          ),
-        ),
-        IconButton.filledTonal(
-          onPressed: onSettings,
-          icon: const Icon(Icons.settings_outlined),
-        ),
-      ],
+    return ScreenHeader(
+      title: 'Dashboard',
+      subtitle: 'Money movement, neatly tracked',
+      showLogo: true,
+      trailing: IconButton.filledTonal(
+        onPressed: onSettings,
+        icon: const Icon(Icons.settings_outlined),
+      ),
     );
   }
 }
@@ -168,19 +153,31 @@ class _NetWorthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = AppSettingsService.instance.preferredCurrency;
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
     return FinanceCard(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Net worth', style: TextStyle(color: AppConstants.darkMuted)),
-          const SizedBox(height: 8),
+          Row(
+            children: [
+              const AppIconBadge(icon: Icons.account_balance_wallet_outlined, size: 44),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Net worth',
+                  style: TextStyle(color: muted, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
           AmountText(
             amount: summary?.netWorth ?? income - spent,
             currency: currency,
             compact: false,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
@@ -225,13 +222,23 @@ class _MiniMetric extends StatelessWidget {
       decoration: BoxDecoration(
         color: dark
             ? Colors.white.withValues(alpha: 0.06)
-            : AppConstants.mint.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
+            : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.44),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: dark ? Colors.white.withValues(alpha: 0.04) : AppConstants.lightStroke,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: AppConstants.darkMuted, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.58),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
             value,
@@ -274,7 +281,7 @@ class _AccountStrip extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(_iconForAccount(account.type), color: AppConstants.mint),
+                  AppIconBadge(icon: _iconForAccount(account.type), size: 38),
                   const Spacer(),
                   Text(
                     account.name,
@@ -314,29 +321,6 @@ class _AccountStrip extends StatelessWidget {
       case AccountType.other:
         return Icons.savings_outlined;
     }
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.trailing});
-
-  final String title;
-  final String? trailing;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-          ),
-        ),
-        if (trailing != null)
-          Text(trailing!, style: const TextStyle(color: AppConstants.darkMuted)),
-      ],
-    );
   }
 }
 

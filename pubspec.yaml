@@ -18,6 +18,7 @@ dependencies:
   fl_chart: ^1.2.0
   google_fonts: ^8.1.0
   intl: ^0.20.2
+  dynamic_color: ^1.7.0
   
   # Hardware & Files
   image_picker: ^1.2.2

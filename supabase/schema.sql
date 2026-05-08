@@ -403,3 +403,6 @@ CREATE POLICY "Users can delete own receipts"
 -- ============================================================
 -- FastAPI uses the service_role key which bypasses RLS.
 -- No additional policies needed for backend access.
+
+-- Make PostgREST pick up any newly added columns immediately after running this script.
+NOTIFY pgrst, 'reload schema';

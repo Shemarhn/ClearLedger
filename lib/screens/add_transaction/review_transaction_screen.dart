@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../core/constants.dart';
@@ -40,7 +38,6 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   late final TextEditingController _amountController;
   late final TextEditingController _descriptionController;
   late final TextEditingController _feeController;
-  Timer? _conversionDebounce;
 
   List<AccountModel> _accounts = [];
   TransactionType _transactionType = TransactionType.expense;
@@ -51,6 +48,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   late String _category;
   late DateTime _date;
   late String _receiptCurrency;
+  late double _receiptAmount;
   String _preferredCurrency = 'JMD';
   CurrencyConversion? _conversion;
   String? _conversionError;
@@ -62,14 +60,12 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   void initState() {
     super.initState();
     _merchantController = TextEditingController(text: widget.parsed.merchant ?? '');
-    _amountController = TextEditingController(
-      text: widget.parsed.amount?.toStringAsFixed(2) ?? '',
-    );
+    _receiptAmount = _initialReceiptAmount(widget.parsed);
+    _amountController = TextEditingController(text: _receiptAmount.toStringAsFixed(2));
     _descriptionController = TextEditingController(text: widget.parsed.description ?? '');
     _feeController = TextEditingController(
       text: widget.parsed.feeAmount?.toStringAsFixed(2) ?? '',
     );
-    _amountController.addListener(_scheduleConversion);
     _transactionType = transactionTypeFromString(widget.parsed.transactionType);
     _receiptCurrency = _normalizeCurrency(widget.parsed.currency);
     _category = AppConstants.categories.contains(widget.parsed.category)
@@ -85,7 +81,6 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     _amountController.dispose();
     _descriptionController.dispose();
     _feeController.dispose();
-    _conversionDebounce?.cancel();
     super.dispose();
   }
 
@@ -93,7 +88,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     await _settingsService.load();
     if (!mounted) return;
     setState(() => _preferredCurrency = _settingsService.preferredCurrency);
-    _refreshConversion();
+    await _refreshConversion(updateAmountField: true);
   }
 
   Future<void> _bootstrap() async {
@@ -124,6 +119,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
         _unlinkedDetectedCard = widget.parsed.cardLast4 != null && detected == null;
         _reconcileAccountSelection();
       });
+      await _refreshConversion(updateAmountField: true);
     } catch (_) {
       // Schema may not be applied yet. The save call will surface the real issue.
     } finally {
@@ -190,23 +186,18 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     return null;
   }
 
-  void _scheduleConversion() {
-    _conversionDebounce?.cancel();
-    _conversionDebounce = Timer(
-      const Duration(milliseconds: 450),
-      _refreshConversion,
-    );
-  }
-
-  Future<void> _refreshConversion() async {
-    final amount = double.tryParse(_amountController.text.trim());
-    if (amount == null || amount <= 0 || _receiptCurrency == _preferredCurrency) {
+  Future<void> _refreshConversion({bool updateAmountField = false}) async {
+    final amountCurrency = _amountCurrency;
+    if (_receiptAmount <= 0 || _receiptCurrency == amountCurrency) {
       if (!mounted) return;
       setState(() {
         _conversion = null;
         _conversionError = null;
         _converting = false;
       });
+      if (updateAmountField) {
+        _setAmountText(_receiptAmount);
+      }
       return;
     }
 
@@ -218,15 +209,18 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
 
     try {
       final conversion = await _exchangeRateService.convert(
-        amount: amount,
+        amount: _receiptAmount,
         fromCurrency: _receiptCurrency,
-        toCurrency: _preferredCurrency,
+        toCurrency: amountCurrency,
       );
       if (!mounted) return;
       setState(() {
         _conversion = conversion;
         _conversionError = null;
       });
+      if (updateAmountField) {
+        _setAmountText(conversion.convertedAmount);
+      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -238,20 +232,21 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     }
   }
 
-  Future<CurrencyConversion> _conversionForSave(double amount) async {
-    if (_receiptCurrency == _preferredCurrency) {
+  Future<CurrencyConversion> _conversionForSave() async {
+    final amountCurrency = _amountCurrency;
+    if (_receiptCurrency == amountCurrency) {
       return CurrencyConversion(
-        originalAmount: amount,
-        convertedAmount: amount,
+        originalAmount: _receiptAmount,
+        convertedAmount: _receiptAmount,
         fromCurrency: _receiptCurrency,
-        toCurrency: _preferredCurrency,
+        toCurrency: amountCurrency,
         exchangeRate: 1,
       );
     }
     return _exchangeRateService.convert(
-      amount: amount,
+      amount: _receiptAmount,
       fromCurrency: _receiptCurrency,
-      toCurrency: _preferredCurrency,
+      toCurrency: amountCurrency,
     );
   }
 
@@ -290,14 +285,16 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
 
     setState(() => _saving = true);
     try {
-      final originalAmount = double.parse(_amountController.text.trim());
-      final conversion = await _conversionForSave(originalAmount);
+      final accountAmount = double.parse(_amountController.text.trim());
+      final conversion = await _conversionForSave();
+      final effectiveRate =
+          conversion.converted && _receiptAmount > 0 ? accountAmount / _receiptAmount : null;
       await _transactionService.createTransaction(
-        amount: conversion.convertedAmount,
+        amount: accountAmount,
         currency: conversion.toCurrency,
-        originalAmount: conversion.converted ? conversion.originalAmount : null,
+        originalAmount: conversion.converted ? _receiptAmount : null,
         originalCurrency: conversion.converted ? conversion.fromCurrency : null,
-        exchangeRate: conversion.converted ? conversion.exchangeRate : null,
+        exchangeRate: effectiveRate,
         transactionType: _transactionType,
         merchant: _merchantController.text.trim().isEmpty
             ? null
@@ -409,7 +406,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                 controller: openingController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'Opening balance ($_preferredCurrency)',
+                  labelText: 'Opening balance ($_amountCurrency)',
                 ),
               ),
             ],
@@ -428,7 +425,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                     name: name,
                     type: type,
                     openingBalance: double.tryParse(openingController.text.trim()) ?? 0,
-                    currency: _preferredCurrency,
+                    currency: _amountCurrency,
                   );
                   await _accountService.linkCardDigits(
                     accountId: account.id,
@@ -465,6 +462,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
         _accountId = created.id;
       }
       _reconcileAccountSelection();
+      _refreshConversion(updateAmountField: true);
     });
   }
 
@@ -494,29 +492,23 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
           key: _formKey,
           child: ListView(
             children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
-                  ),
-                  const SizedBox(width: 6),
-                  const Expanded(
-                    child: Text(
-                      'Review movement',
-                      style: TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                ],
+              ScreenHeader(
+                title: 'Review movement',
+                subtitle: 'Confirm the detected details before saving',
+                icon: Icons.fact_check_outlined,
+                trailing: IconButton.filledTonal(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               FinanceCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.document_scanner_outlined, color: AppConstants.mint),
+                        const AppIconBadge(icon: Icons.document_scanner_outlined, size: 42),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -524,7 +516,10 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
                           ),
                         ),
-                        Text('$confidence%', style: const TextStyle(color: AppConstants.mint)),
+                        Text(
+                          '$confidence%',
+                          style: TextStyle(color: Theme.of(context).colorScheme.primary),
+                        ),
                       ],
                     ),
                     if (widget.parsed.cardLast4 != null) ...[
@@ -554,7 +549,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
               TextFormField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(labelText: 'Amount ($_receiptCurrency)'),
+                decoration: InputDecoration(labelText: 'Amount ($_amountCurrency)'),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) return 'Amount is required';
                   if (double.tryParse(value.trim()) == null) return 'Enter a valid number';
@@ -570,11 +565,11 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                 onChanged: (value) {
                   if (value == null) return;
                   setState(() => _receiptCurrency = value);
-                  _refreshConversion();
+                  _refreshConversion(updateAmountField: true);
                 },
                 decoration: const InputDecoration(labelText: 'Receipt currency'),
               ),
-              if (_receiptCurrency != _preferredCurrency) ...[
+              if (_receiptCurrency != _amountCurrency) ...[
                 const SizedBox(height: 12),
                 _conversionNotice(),
               ],
@@ -596,10 +591,16 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                   items: _accounts
                       .map((account) => DropdownMenuItem(
                             value: account.id,
-                            child: Text(account.name, overflow: TextOverflow.ellipsis),
+                            child: Text(
+                              '${account.name} (${account.currency})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ))
                       .toList(),
-                  onChanged: (value) => setState(() => _accountId = value),
+                  onChanged: (value) {
+                    setState(() => _accountId = value);
+                    _refreshConversion(updateAmountField: true);
+                  },
                   decoration: InputDecoration(
                     labelText: _transactionType == TransactionType.deposit
                         ? 'From account'
@@ -613,10 +614,16 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                     items: _accounts
                         .map((account) => DropdownMenuItem(
                               value: account.id,
-                              child: Text(account.name, overflow: TextOverflow.ellipsis),
+                              child: Text(
+                                '${account.name} (${account.currency})',
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ))
                         .toList(),
-                    onChanged: (value) => setState(() => _destinationAccountId = value),
+                    onChanged: (value) {
+                      setState(() => _destinationAccountId = value);
+                      _refreshConversion(updateAmountField: true);
+                    },
                     decoration: const InputDecoration(labelText: 'Destination account'),
                   ),
                 ],
@@ -655,10 +662,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
               ),
               if (widget.parsed.lineItems.isNotEmpty) ...[
                 const SizedBox(height: 14),
-                const Text(
-                  'Line items',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                ),
+                const SectionHeading(title: 'Line items'),
                 const SizedBox(height: 8),
                 FinanceCard(
                   child: Column(
@@ -713,7 +717,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       return FinanceCard(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Text(
-          'Could not convert $_receiptCurrency to $_preferredCurrency yet. Saving will retry.',
+          'Could not convert $_receiptCurrency to $_amountCurrency yet. Saving will retry.',
           style: const TextStyle(color: AppConstants.warningAmber),
         ),
       );
@@ -724,13 +728,13 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          const Icon(Icons.currency_exchange, color: AppConstants.mint),
+          const AppIconBadge(icon: Icons.currency_exchange, size: 38),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               conversion == null
-                  ? 'This will save in $_preferredCurrency.'
-                  : 'Saves as $_preferredCurrency ${conversion.convertedAmount.toStringAsFixed(2)}',
+                  ? 'Receipt total: $_receiptCurrency ${_receiptAmount.toStringAsFixed(2)}.'
+                  : 'Receipt total: $_receiptCurrency ${_receiptAmount.toStringAsFixed(2)} -> $_amountCurrency ${conversion.convertedAmount.toStringAsFixed(2)}',
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
@@ -753,7 +757,11 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.credit_card_off_outlined, color: AppConstants.warningAmber),
+              const AppIconBadge(
+                icon: Icons.credit_card_off_outlined,
+                color: AppConstants.warningAmber,
+                size: 38,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -835,5 +843,35 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       case TransactionType.refund:
         return Icons.replay;
     }
+  }
+
+  String get _amountCurrency {
+    final account = _accountById(_amountAccountId);
+    return _normalizeCurrency(account?.currency ?? _preferredCurrency);
+  }
+
+  String? get _amountAccountId {
+    if (_transactionType == TransactionType.deposit) {
+      return _destinationAccountId ?? _accountId;
+    }
+    return _accountId ?? _destinationAccountId;
+  }
+
+  double _initialReceiptAmount(ParsedTransaction parsed) {
+    final lineTotal = parsed.lineItems.fold<double>(0, (sum, item) => sum + item.price);
+    final parsedAmount = parsed.amount;
+    if (parsedAmount == null || parsedAmount <= 0) {
+      return lineTotal > 0 ? lineTotal : 0;
+    }
+    if (lineTotal > parsedAmount + 0.01) {
+      return lineTotal;
+    }
+    return parsedAmount;
+  }
+
+  void _setAmountText(double value) {
+    final next = value.toStringAsFixed(2);
+    if (_amountController.text == next) return;
+    _amountController.text = next;
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 import 'core/theme.dart';
 import 'screens/auth/login_screen.dart';
@@ -77,23 +78,25 @@ class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObse
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _settingsService,
-      builder: (context, _) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'ClearLedger',
-        theme: AppTheme.lightTheme,
-        darkTheme: AppTheme.darkTheme,
-        themeMode: _settingsService.themeMode,
-        home: StreamBuilder(
-          stream: _authService.authStateChanges,
-          builder: (context, snapshot) {
-            if (_authService.isLoggedIn) {
-              _settingsService.load();
-              return const HomeScreen();
-            }
-            return const LoginScreen();
-          },
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) => AnimatedBuilder(
+        animation: _settingsService,
+        builder: (context, _) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'ClearLedger',
+          theme: AppTheme.lightThemeFor(lightDynamic),
+          darkTheme: AppTheme.darkThemeFor(darkDynamic),
+          themeMode: _settingsService.themeMode,
+          home: StreamBuilder(
+            stream: _authService.authStateChanges,
+            builder: (context, snapshot) {
+              if (_authService.isLoggedIn) {
+                _settingsService.load();
+                return const HomeScreen();
+              }
+              return const LoginScreen();
+            },
+          ),
         ),
       ),
     );

@@ -209,3 +209,6 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+
+-- Make PostgREST pick up the newly added transaction/account columns immediately.
+NOTIFY pgrst, 'reload schema';

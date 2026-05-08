@@ -5,6 +5,7 @@ import '../../core/constants.dart';
 import '../../core/supabase_client.dart';
 import '../../models/transaction.dart';
 import '../../services/transaction_service.dart';
+import '../../widgets/dark_shell.dart';
 
 class TransactionDetailScreen extends StatefulWidget {
   const TransactionDetailScreen({super.key, required this.transaction});
@@ -155,39 +156,55 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     final busy = _saving || _deleting;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Transaction Details'),
-        actions: [
-          if (!_editing)
-            IconButton(
-              onPressed: busy ? null : () => setState(() => _editing = true),
-              icon: const Icon(Icons.edit_outlined),
-            )
-          else
-            IconButton(
-              onPressed: busy ? null : () => setState(() => _editing = false),
-              icon: const Icon(Icons.close),
+      body: DarkShell(
+        child: ListView(
+          children: [
+            ScreenHeader(
+              title: 'Transaction details',
+              subtitle: widget.transaction.merchant ?? widget.transaction.transactionType.label,
+              icon: Icons.receipt_long_outlined,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton.filledTonal(
+                    onPressed: () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.arrow_back),
+                  ),
+                  const SizedBox(width: 6),
+                  if (!_editing)
+                    IconButton.filledTonal(
+                      onPressed: busy ? null : () => setState(() => _editing = true),
+                      icon: const Icon(Icons.edit_outlined),
+                    )
+                  else
+                    IconButton.filledTonal(
+                      onPressed: busy ? null : () => setState(() => _editing = false),
+                      icon: const Icon(Icons.close),
+                    ),
+                ],
+              ),
             ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (_editing) _editForm() else _readOnlyDetails(),
-          if (widget.transaction.receiptImageUrl != null &&
-              widget.transaction.receiptImageUrl!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const Text('Receipt Image', style: TextStyle(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            _receiptImage(widget.transaction.receiptImageUrl!),
+            const SizedBox(height: 18),
+            if (_editing)
+              FinanceCard(child: _editForm())
+            else
+              FinanceCard(child: _readOnlyDetails()),
+            if (widget.transaction.receiptImageUrl != null &&
+                widget.transaction.receiptImageUrl!.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const SectionHeading(title: 'Receipt image'),
+              const SizedBox(height: 8),
+              FinanceCard(child: _receiptImage(widget.transaction.receiptImageUrl!)),
+            ],
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: busy ? null : _delete,
+              icon: const Icon(Icons.delete_outline),
+              label: Text(_deleting ? 'Deleting...' : 'Delete transaction'),
+            ),
+            const SizedBox(height: 24),
           ],
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: busy ? null : _delete,
-            icon: const Icon(Icons.delete_outline),
-            label: Text(_deleting ? 'Deleting...' : 'Delete Transaction'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -298,7 +315,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
                     height: 22,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save Changes'),
+                : const Text('Save changes'),
           ),
         ],
       ),

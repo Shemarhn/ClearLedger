@@ -4,6 +4,7 @@ import '../../models/budget.dart';
 import '../../services/budget_alert_service.dart';
 import '../../services/budget_service.dart';
 import '../../widgets/budget_progress_bar.dart';
+import '../../widgets/dark_shell.dart';
 import 'add_budget_screen.dart';
 
 class BudgetScreen extends StatefulWidget {
@@ -55,49 +56,61 @@ class _BudgetScreenState extends State<BudgetScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Budgets'),
-        actions: [
-          IconButton(onPressed: () => _openAddBudget(), icon: const Icon(Icons.add)),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? ListView(
+      body: DarkShell(
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : RefreshIndicator(
+                onRefresh: _load,
+                child: ListView(
                   children: [
-                    const SizedBox(height: 100),
-                    Center(child: Text('Could not load budgets: $_error')),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: OutlinedButton(
-                        onPressed: _load,
-                        child: const Text('Retry'),
+                    ScreenHeader(
+                      title: 'Budgets',
+                      subtitle: 'Limits and category progress',
+                      icon: Icons.pie_chart_outline,
+                      trailing: IconButton.filled(
+                        onPressed: () => _openAddBudget(),
+                        icon: const Icon(Icons.add),
                       ),
                     ),
-                  ],
-                )
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: _budgets.isEmpty
-                  ? ListView(
-                      children: [
-                        SizedBox(height: 100),
-                        Center(child: Text('No budgets yet. Tap + to add one.')),
-                      ],
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _budgets.length,
-                      itemBuilder: (context, index) {
-                        final budget = _budgets[index];
-                        return BudgetProgressBar(
+                    const SizedBox(height: 18),
+                    if (_error != null)
+                      FinanceCard(
+                        child: Column(
+                          children: [
+                            Text('Could not load budgets: $_error'),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              onPressed: _load,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      )
+                    else if (_budgets.isEmpty)
+                      const FinanceCard(
+                        child: Column(
+                          children: [
+                            AppIconBadge(icon: Icons.pie_chart_outline),
+                            SizedBox(height: 14),
+                            Text(
+                              'No budgets yet.',
+                              style: TextStyle(fontWeight: FontWeight.w900),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      ..._budgets.map(
+                        (budget) => BudgetProgressBar(
                           budget: budget,
                           onTap: () => _openAddBudget(budget),
-                        );
-                      },
-                    ),
-            ),
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }

@@ -75,6 +75,30 @@ class AccountService {
     return AccountModel.fromJson(response);
   }
 
+  Future<AccountModel> updateAccount({
+    required String accountId,
+    required String name,
+    required AccountType type,
+    required double openingBalance,
+    required String currency,
+    required bool isDefaultCash,
+  }) async {
+    final response = await supabase
+        .from('accounts')
+        .update({
+          'name': name,
+          'type': type.value,
+          'currency': currency,
+          'opening_balance': openingBalance,
+          'is_default_cash': isDefaultCash,
+        })
+        .eq('id', accountId)
+        .select()
+        .single();
+
+    return AccountModel.fromJson(response);
+  }
+
   Future<void> linkCardDigits({
     required String accountId,
     required String cardLast4,

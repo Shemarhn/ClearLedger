@@ -4,6 +4,7 @@ import '../../core/constants.dart';
 import '../../models/budget.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/budget_service.dart';
+import '../../widgets/dark_shell.dart';
 
 class AddBudgetScreen extends StatefulWidget {
   const AddBudgetScreen({super.key, this.budget});
@@ -147,47 +148,63 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     final currency = AppSettingsService.instance.preferredCurrency;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_editing ? 'Edit Budget' : 'Add Budget')),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      body: DarkShell(
+        child: ListView(
           children: [
-            DropdownButtonFormField<String>(
-              initialValue: _category,
-              items: AppConstants.categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: busy ? null : (value) => setState(() => _category = value ?? _category),
-              decoration: const InputDecoration(labelText: 'Category'),
+            ScreenHeader(
+              title: _editing ? 'Edit budget' : 'Add budget',
+              subtitle: 'Set a monthly limit for one category',
+              icon: Icons.pie_chart_outline,
+              trailing: IconButton.filledTonal(
+                onPressed: busy ? null : () => Navigator.of(context).maybePop(),
+                icon: const Icon(Icons.arrow_back),
+              ),
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: _amountController,
-              enabled: !busy,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Monthly limit ($currency)'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Month: ${_month.year}-${_month.month.toString().padLeft(2, '0')}-01',
+            const SizedBox(height: 18),
+            FinanceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: _category,
+                    items: AppConstants.categories
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
+                    onChanged:
+                        busy ? null : (value) => setState(() => _category = value ?? _category),
+                    decoration: const InputDecoration(labelText: 'Category'),
                   ),
-                ),
-                TextButton(onPressed: busy ? null : _pickMonth, child: const Text('Change')),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: busy ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(_editing ? 'Save Changes' : 'Save Budget'),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _amountController,
+                    enabled: !busy,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(labelText: 'Monthly limit ($currency)'),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Month: ${_month.year}-${_month.month.toString().padLeft(2, '0')}-01',
+                        ),
+                      ),
+                      TextButton(onPressed: busy ? null : _pickMonth, child: const Text('Change')),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: busy ? null : _save,
+                    child: _saving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Text(_editing ? 'Save changes' : 'Save budget'),
+                  ),
+                ],
+              ),
             ),
             if (_editing) ...[
               const SizedBox(height: 12),
@@ -197,6 +214,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
                 label: Text(_deleting ? 'Deleting...' : 'Delete Budget'),
               ),
             ],
+            const SizedBox(height: 24),
           ],
         ),
       ),

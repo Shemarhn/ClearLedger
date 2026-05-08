@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants.dart';
 import '../../models/transaction.dart';
 import '../../services/transaction_service.dart';
 import '../../widgets/dark_shell.dart';
@@ -65,27 +64,26 @@ class _LedgerScreenState extends State<LedgerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Ledger',
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+            const ScreenHeader(
+              title: 'Ledger',
+              subtitle: 'Expenses, inflows, deposits, withdrawals, and transfers',
+              icon: Icons.list_alt_outlined,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Expenses, inflows, deposits, withdrawals, and transfers',
-              style: TextStyle(color: AppConstants.darkMuted),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search merchant, account, or card digits',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  onPressed: _loadTransactions,
-                  icon: const Icon(Icons.arrow_forward),
+            const SizedBox(height: 18),
+            FinanceCard(
+              padding: const EdgeInsets.all(12),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search merchant, account, or card digits',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: IconButton.filledTonal(
+                    onPressed: _loadTransactions,
+                    icon: const Icon(Icons.arrow_forward),
+                  ),
                 ),
+                onSubmitted: (_) => _loadTransactions(),
               ),
-              onSubmitted: (_) => _loadTransactions(),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -99,6 +97,11 @@ class _LedgerScreenState extends State<LedgerScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            SectionHeading(
+              title: 'Transactions',
+              trailing: '${_transactions.length}',
+            ),
+            const SizedBox(height: 10),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -113,9 +116,20 @@ class _LedgerScreenState extends State<LedgerScreen> {
                           onRefresh: _loadTransactions,
                           child: _transactions.isEmpty
                               ? ListView(
-                                  children: const [
-                                    SizedBox(height: 80),
-                                    FinanceCard(child: Text('No transactions found.')),
+                                  children: [
+                                    const SizedBox(height: 80),
+                                    FinanceCard(
+                                      child: Column(
+                                        children: const [
+                                          AppIconBadge(icon: Icons.receipt_long_outlined),
+                                          SizedBox(height: 14),
+                                          Text(
+                                            'No transactions found.',
+                                            style: TextStyle(fontWeight: FontWeight.w900),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 )
                               : ListView.builder(

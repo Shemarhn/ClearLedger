@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/constants.dart';
+import '../../widgets/dark_shell.dart';
 import '../add_transaction/add_transaction_screen.dart';
 import '../ai_overview/ai_overview_screen.dart';
 import '../accounts/accounts_screen.dart';
@@ -36,8 +38,8 @@ class _HomeScreenState extends State<HomeScreen> {
         destinations: const [
           NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Ledger'),
-          NavigationDestination(icon: Icon(Icons.add_circle_outline), label: 'Add'),
-          NavigationDestination(icon: Icon(Icons.menu), label: 'Menu'),
+          NavigationDestination(icon: Icon(Icons.add_box_outlined), label: 'Add'),
+          NavigationDestination(icon: Icon(Icons.tune_outlined), label: 'More'),
         ],
         onDestinationSelected: (value) {
           if (value == 3) {
@@ -63,30 +65,38 @@ class _AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
     return Drawer(
+      backgroundColor: dark ? AppConstants.darkSurface : AppConstants.surface,
       child: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+          padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 18),
+              padding: const EdgeInsets.fromLTRB(8, 18, 8, 46),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    backgroundColor: colorScheme.primary.withValues(alpha: 0.16),
-                    child: Icon(Icons.account_balance_wallet_outlined, color: colorScheme.primary),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
+                  const AppLogoMark(size: 54),
+                  const SizedBox(height: 18),
+                  Text(
                     'ClearLedger',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                    style: TextStyle(
+                      color: primary,
+                      fontSize: 31,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
                     'Tools, insights, and account rules',
-                    style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.62)),
+                    style: TextStyle(
+                      color: dark ? Colors.white.withValues(alpha: 0.84) : muted,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -109,7 +119,7 @@ class _AppDrawer extends StatelessWidget {
               subtitle: 'Once-daily spending analysis',
               onTap: () => onOpenPage(const AiOverviewScreen()),
             ),
-            const Divider(height: 28),
+            const Divider(height: 34),
             _DrawerItem(
               icon: Icons.settings_outlined,
               title: 'Settings',
@@ -138,12 +148,18 @@ class _DrawerItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
-      subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: AppIconBadge(icon: icon, size: 42),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+        subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
+        trailing: const Icon(Icons.chevron_right),
+        minLeadingWidth: 42,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        onTap: onTap,
+      ),
     );
   }
 }
