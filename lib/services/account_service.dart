@@ -59,6 +59,10 @@ class AccountService {
     final user = supabase.auth.currentUser;
     if (user == null) throw Exception('Not logged in');
 
+    if (isDefaultCash) {
+      await _clearOtherDefaultCashAccounts(user.id);
+    }
+
     final response = await supabase
         .from('accounts')
         .insert({
@@ -83,6 +87,13 @@ class AccountService {
     required String currency,
     required bool isDefaultCash,
   }) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
+
+    if (isDefaultCash) {
+      await _clearOtherDefaultCashAccounts(user.id, exceptAccountId: accountId);
+    }
+
     final response = await supabase
         .from('accounts')
         .update({
@@ -115,7 +126,7 @@ class AccountService {
       'user_id': user.id,
       'account_id': accountId,
       'card_last4': sanitized,
-    });
+    }, onConflict: 'user_id,card_last4');
   }
 
   Future<AccountModel?> findAccountForCard(String? cardLast4) async {
@@ -145,5 +156,22 @@ class AccountService {
       }
     }
     return accounts.isEmpty ? null : accounts.first;
+  }
+
+  Future<void> _clearOtherDefaultCashAccounts(
+    String userId, {
+    String? exceptAccountId,
+  }) async {
+    dynamic query = supabase
+        .from('accounts')
+        .update({'is_default_cash': false})
+        .eq('user_id', userId)
+        .eq('is_default_cash', true);
+
+    if (exceptAccountId != null) {
+      query = query.neq('id', exceptAccountId);
+    }
+
+    await query;
   }
 }

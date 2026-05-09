@@ -55,6 +55,8 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   bool _saving = false;
   bool _loadingAccounts = true;
   bool _converting = false;
+  bool _linkingDetectedCard = false;
+  bool _creatingDetectedAccount = false;
 
   @override
   void initState() {
@@ -329,6 +331,8 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   }
 
   Future<void> _linkDetectedCardToSelectedAccount() async {
+    if (_linkingDetectedCard) return;
+
     final card = widget.parsed.cardLast4;
     final account = _accountById(_cardLinkCandidateAccountId());
     if (card == null || account == null) {
@@ -339,6 +343,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     }
 
     try {
+      setState(() => _linkingDetectedCard = true);
       await _accountService.linkCardDigits(accountId: account.id, cardLast4: card);
       if (!mounted) return;
       setState(() {
@@ -350,6 +355,8 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
         }
         _reconcileAccountSelection();
       });
+      await _refreshConversion(updateAmountField: true);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Card ****$card linked to ${account.name}.')),
       );
@@ -358,6 +365,8 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not link card: $error')),
       );
+    } finally {
+      if (mounted) setState(() => _linkingDetectedCard = false);
     }
   }
 
@@ -369,101 +378,57 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   }
 
   Future<void> _createAccountForDetectedCard() async {
+    if (_creatingDetectedAccount) return;
+
     final card = widget.parsed.cardLast4;
     if (card == null) return;
 
-    final nameController = TextEditingController(text: 'Card ****$card');
-    final openingController = TextEditingController(text: '0');
-    var type = AccountType.checking;
-
-    final created = await showDialog<AccountModel>(
+    final draft = await showDialog<_DetectedCardAccountDraft>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text('Create account for ****$card'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Account name'),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<AccountType>(
-                initialValue: type,
-                items: AccountType.values
-                    .where((value) => value != AccountType.cash)
-                    .map((value) => DropdownMenuItem(
-                          value: value,
-                          child: Text(value.label),
-                        ))
-                    .toList(),
-                onChanged: (value) => setDialogState(() => type = value ?? type),
-                decoration: const InputDecoration(labelText: 'Account type'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: openingController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: 'Opening balance ($_amountCurrency)',
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () async {
-                try {
-                  final name = nameController.text.trim();
-                  if (name.isEmpty) return;
-                  final account = await _accountService.createAccount(
-                    name: name,
-                    type: type,
-                    openingBalance: double.tryParse(openingController.text.trim()) ?? 0,
-                    currency: _amountCurrency,
-                  );
-                  await _accountService.linkCardDigits(
-                    accountId: account.id,
-                    cardLast4: card,
-                  );
-                  if (context.mounted) Navigator.of(context).pop(account);
-                } catch (error) {
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Could not create account: $error')),
-                  );
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        ),
+      builder: (_) => _DetectedCardAccountDialog(
+        cardLast4: card,
+        currency: _amountCurrency,
       ),
     );
 
-    nameController.dispose();
-    openingController.dispose();
+    if (draft == null || !mounted) return;
 
-    if (created == null || !mounted) return;
-    final accounts = await _accountService.getAccounts();
-    if (!mounted) return;
-    setState(() {
-      _accounts = accounts;
-      _detectedAccount = created;
-      _unlinkedDetectedCard = false;
-      if (_transactionType == TransactionType.deposit) {
-        _destinationAccountId = created.id;
-      } else {
-        _accountId = created.id;
-      }
-      _reconcileAccountSelection();
-      _refreshConversion(updateAmountField: true);
-    });
+    setState(() => _creatingDetectedAccount = true);
+    try {
+      final created = await _accountService.createAccount(
+        name: draft.name,
+        type: draft.type,
+        openingBalance: draft.openingBalance,
+        currency: draft.currency,
+      );
+      await _accountService.linkCardDigits(accountId: created.id, cardLast4: card);
+
+      final accounts = await _accountService.getAccounts();
+      if (!mounted) return;
+      setState(() {
+        _accounts = accounts;
+        _detectedAccount = created;
+        _unlinkedDetectedCard = false;
+        if (_transactionType == TransactionType.deposit) {
+          _destinationAccountId = created.id;
+        } else {
+          _accountId = created.id;
+        }
+        _reconcileAccountSelection();
+      });
+      await _refreshConversion(updateAmountField: true);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Card ****$card linked to ${created.name}.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not create account: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _creatingDetectedAccount = false);
+    }
   }
 
   Future<void> _pickDate() async {
@@ -474,6 +439,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) {
+      if (!mounted) return;
       setState(() => _date = picked);
     }
   }
@@ -552,7 +518,9 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                 decoration: InputDecoration(labelText: 'Amount ($_amountCurrency)'),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) return 'Amount is required';
-                  if (double.tryParse(value.trim()) == null) return 'Enter a valid number';
+                  final amount = double.tryParse(value.trim());
+                  if (amount == null) return 'Enter a valid number';
+                  if (amount <= 0) return 'Amount must be greater than zero';
                   return null;
                 },
               ),
@@ -638,6 +606,14 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                   controller: _feeController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: const InputDecoration(labelText: 'Fee, if any'),
+                  validator: (value) {
+                    final trimmed = value?.trim() ?? '';
+                    if (trimmed.isEmpty) return null;
+                    final fee = double.tryParse(trimmed);
+                    if (fee == null) return 'Enter a valid fee';
+                    if (fee < 0) return 'Fee cannot be negative';
+                    return null;
+                  },
                 ),
               ],
               const SizedBox(height: 12),
@@ -784,14 +760,18 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
             runSpacing: 8,
             children: [
               FilledButton.icon(
-                onPressed: selected == null ? null : _linkDetectedCardToSelectedAccount,
+                onPressed: selected == null || _linkingDetectedCard || _creatingDetectedAccount
+                    ? null
+                    : _linkDetectedCardToSelectedAccount,
                 icon: const Icon(Icons.link),
-                label: const Text('Link selected'),
+                label: Text(_linkingDetectedCard ? 'Linking...' : 'Link selected'),
               ),
               OutlinedButton.icon(
-                onPressed: _createAccountForDetectedCard,
+                onPressed: _linkingDetectedCard || _creatingDetectedAccount
+                    ? null
+                    : _createAccountForDetectedCard,
                 icon: const Icon(Icons.add),
-                label: const Text('Create account'),
+                label: Text(_creatingDetectedAccount ? 'Creating...' : 'Create account'),
               ),
             ],
           ),
@@ -819,10 +799,13 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
           selected: selected,
           label: Text(type.label),
           avatar: Icon(_iconForType(type), size: 18),
-          onSelected: (_) => setState(() {
-            _transactionType = type;
-            _reconcileAccountSelection();
-          }),
+          onSelected: (_) {
+            setState(() {
+              _transactionType = type;
+              _reconcileAccountSelection();
+            });
+            _refreshConversion(updateAmountField: true);
+          },
         );
       }).toList(),
     );
@@ -873,5 +856,125 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     final next = value.toStringAsFixed(2);
     if (_amountController.text == next) return;
     _amountController.text = next;
+  }
+}
+
+class _DetectedCardAccountDraft {
+  const _DetectedCardAccountDraft({
+    required this.name,
+    required this.type,
+    required this.openingBalance,
+    required this.currency,
+  });
+
+  final String name;
+  final AccountType type;
+  final double openingBalance;
+  final String currency;
+}
+
+class _DetectedCardAccountDialog extends StatefulWidget {
+  const _DetectedCardAccountDialog({
+    required this.cardLast4,
+    required this.currency,
+  });
+
+  final String cardLast4;
+  final String currency;
+
+  @override
+  State<_DetectedCardAccountDialog> createState() => _DetectedCardAccountDialogState();
+}
+
+class _DetectedCardAccountDialogState extends State<_DetectedCardAccountDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _openingController;
+  late String _currency;
+  AccountType _type = AccountType.checking;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: 'Card ****${widget.cardLast4}');
+    _openingController = TextEditingController(text: '0');
+    _currency = widget.currency;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _openingController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Create account for ****${widget.cardLast4}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              decoration: const InputDecoration(labelText: 'Account name'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<AccountType>(
+              initialValue: _type,
+              items: AccountType.values
+                  .where((value) => value != AccountType.cash)
+                  .map(
+                    (value) => DropdownMenuItem(
+                      value: value,
+                      child: Text(value.label),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => setState(() => _type = value ?? _type),
+              decoration: const InputDecoration(labelText: 'Account type'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _currency,
+              items: AppSettingsService.supportedCurrencies
+                  .map((currency) => DropdownMenuItem(value: currency, child: Text(currency)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _currency = value);
+              },
+              decoration: const InputDecoration(labelText: 'Account currency'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _openingController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: InputDecoration(labelText: 'Opening balance ($_currency)'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () {
+            final name = _nameController.text.trim();
+            if (name.isEmpty) return;
+            Navigator.of(context).pop(
+              _DetectedCardAccountDraft(
+                name: name,
+                type: _type,
+                openingBalance: double.tryParse(_openingController.text.trim()) ?? 0,
+                currency: _currency,
+              ),
+            );
+          },
+          child: const Text('Create'),
+        ),
+      ],
+    );
   }
 }

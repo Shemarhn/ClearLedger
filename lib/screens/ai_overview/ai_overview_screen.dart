@@ -23,6 +23,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
   final _transactionService = TransactionService();
   bool _loading = true;
   bool _generating = false;
+  String? _error;
   String? _lastGenerated;
   List<String> _insights = [];
   List<String> _suggestions = [];
@@ -38,23 +39,32 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final prefs = await SharedPreferences.getInstance();
-    final txs = await _transactionService.getTransactions(limit: 500);
-    final month = DateTime.now();
-    final income = await _transactionService.getTotalIncomeForMonth(month);
-    final spent = await _transactionService.getTotalSpentForMonth(month);
-    if (!mounted) return;
-    final storedInsights = prefs.getStringList('ai_overview_insights');
-    final storedSuggestions = prefs.getStringList('ai_overview_suggestions');
-    setState(() {
-      _lastGenerated = prefs.getString(_lastGeneratedKey);
-      _income = income;
-      _spent = spent;
-      _insights = storedInsights ?? _buildInsights(txs, income, spent);
-      _suggestions = storedSuggestions ?? _buildSuggestions(txs, income, spent);
-      _summary = prefs.getString('ai_overview_summary') ?? _summary;
-      _loading = false;
-    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final txs = await _transactionService.getTransactions(limit: 500);
+      final month = DateTime.now();
+      final income = await _transactionService.getTotalIncomeForMonth(month);
+      final spent = await _transactionService.getTotalSpentForMonth(month);
+      if (!mounted) return;
+      final storedInsights = prefs.getStringList('ai_overview_insights');
+      final storedSuggestions = prefs.getStringList('ai_overview_suggestions');
+      setState(() {
+        _lastGenerated = prefs.getString(_lastGeneratedKey);
+        _income = income;
+        _spent = spent;
+        _insights = storedInsights ?? _buildInsights(txs, income, spent);
+        _suggestions = storedSuggestions ?? _buildSuggestions(txs, income, spent);
+        _summary = prefs.getString('ai_overview_summary') ?? _summary;
+        _error = null;
+        _loading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _generate() async {
@@ -82,6 +92,26 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
       body: DarkShell(
         child: _loading
             ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? ListView(
+                    children: [
+                      const ScreenHeader(
+                        title: 'AI Overview',
+                        subtitle: 'A once-daily read on your money habits',
+                        icon: Icons.auto_awesome_outlined,
+                      ),
+                      const SizedBox(height: 18),
+                      FinanceCard(
+                        child: Column(
+                          children: [
+                            Text('Could not load overview: $_error'),
+                            const SizedBox(height: 12),
+                            OutlinedButton(onPressed: _load, child: const Text('Retry')),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
             : RefreshIndicator(
                 onRefresh: _load,
                 child: ListView(

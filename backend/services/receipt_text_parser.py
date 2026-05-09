@@ -185,7 +185,7 @@ def extract_receipt_candidates(ocr_text: str) -> dict[str, Any]:
         full_text,
     )
 
-    best_amount = amount_candidates[0].amount if amount_candidates else None
+    best_amount = _best_receipt_amount(amount_candidates, line_item_candidates)
     best_merchant = merchant_candidates[0].value if merchant_candidates else None
     best_date = date_candidates[0].value if date_candidates else None
 
@@ -296,6 +296,18 @@ def reconcile_receipt_result(
             reconciled["confidence"] = min(_coerce_float(reconciled.get("confidence")) or 0.5, 0.65)
     elif best_guess.get("amount") is not None:
         reconciled["amount"] = best_guess["amount"]
+
+    best_amount = _coerce_float(best_guess.get("amount"))
+    line_total = _line_items_total(best_guess.get("line_items") or [])
+    current_amount = _coerce_float(reconciled.get("amount"))
+    if (
+        best_amount is not None
+        and line_total is not None
+        and abs(best_amount - line_total) <= 0.01
+        and (current_amount is None or current_amount < line_total - 0.01)
+    ):
+        reconciled["amount"] = best_amount
+        reconciled["confidence"] = min(_coerce_float(reconciled.get("confidence")) or 0.5, 0.7)
 
     if not _clean_string(reconciled.get("merchant")) and best_guess.get("merchant"):
         reconciled["merchant"] = best_guess["merchant"]
@@ -452,6 +464,11 @@ def _line_item_candidates(lines: list[str]) -> list[dict[str, Any]]:
         lowered = line.lower()
         if any(keyword in lowered for keyword in TOTAL_KEYWORDS + NON_FINAL_AMOUNT_KEYWORDS):
             continue
+        if any(
+            keyword in lowered
+            for keyword in ("card", "visa", "mastercard", "debit", "credit", "auth", "approval")
+        ):
+            continue
         if _date_strings(line):
             continue
 
@@ -478,6 +495,48 @@ def _line_item_candidates(lines: list[str]) -> list[dict[str, Any]]:
         )
 
     return items
+
+
+def _best_receipt_amount(
+    amount_candidates: list[AmountCandidate],
+    line_item_candidates: list[dict[str, Any]],
+) -> float | None:
+    line_total = _line_items_total(line_item_candidates)
+    if not amount_candidates:
+        return line_total
+
+    best = amount_candidates[0]
+    if best.label in {"total", "final_total"}:
+        return best.amount
+
+    if (
+        line_total is not None
+        and len(line_item_candidates) >= 2
+        and line_total > best.amount + 0.01
+    ):
+        return line_total
+
+    return best.amount
+
+
+def _line_items_total(line_items: list[dict[str, Any]]) -> float | None:
+    if not line_items:
+        return None
+
+    total = 0.0
+    counted = 0
+    for item in line_items:
+        if not isinstance(item, dict):
+            continue
+        amount = _coerce_float(item.get("price"))
+        if amount is None:
+            continue
+        total += amount
+        counted += 1
+
+    if counted == 0:
+        return None
+    return round(total, 2)
 
 
 def _merchant_line(line: str) -> str | None:

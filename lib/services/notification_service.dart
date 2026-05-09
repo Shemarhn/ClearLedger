@@ -65,7 +65,7 @@ class NotificationService {
     await supabase.from('fcm_tokens').upsert({
       'user_id': user.id,
       'token': token,
-    });
+    }, onConflict: 'user_id,token');
   }
 
   Future<void> showLocalNotification({

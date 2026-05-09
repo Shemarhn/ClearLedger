@@ -26,6 +26,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       final accounts = await _accountService.getAccounts();
@@ -43,24 +44,26 @@ class _AccountsScreenState extends State<AccountsScreen> {
   }
 
   Future<void> _addAccount() async {
-    await showModalBottomSheet<void>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _AccountSheet(onSaved: _load),
+      builder: (_) => const _AccountSheet(),
     );
+    if (saved == true && mounted) await _load();
   }
 
   Future<void> _editAccount(AccountModel account) async {
-    await showModalBottomSheet<void>(
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => _AccountSheet(account: account, onSaved: _load),
+      builder: (_) => _AccountSheet(account: account),
     );
+    if (saved == true && mounted) await _load();
   }
 
   Future<void> _linkCard(AccountModel account) async {
     final controller = TextEditingController();
-    await showDialog<void>(
+    final digits = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Link card to ${account.name}'),
@@ -73,27 +76,29 @@ class _AccountsScreenState extends State<AccountsScreen> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
-            onPressed: () async {
-              try {
-                await _accountService.linkCardDigits(
-                  accountId: account.id,
-                  cardLast4: controller.text,
-                );
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                _load();
-              } catch (error) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Could not link card: $error')),
-                );
-              }
-            },
+            onPressed: () => Navigator.pop(context, controller.text),
             child: const Text('Save'),
           ),
         ],
       ),
     );
+    controller.dispose();
+
+    if (!mounted) return;
+    final cardLast4 = digits?.trim();
+    if (cardLast4 == null || cardLast4.isEmpty) return;
+    try {
+      await _accountService.linkCardDigits(
+        accountId: account.id,
+        cardLast4: cardLast4,
+      );
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not link card: $error')),
+      );
+    }
   }
 
   @override
@@ -255,10 +260,9 @@ class _AccountCard extends StatelessWidget {
 }
 
 class _AccountSheet extends StatefulWidget {
-  const _AccountSheet({this.account, required this.onSaved});
+  const _AccountSheet({this.account});
 
   final AccountModel? account;
-  final VoidCallback onSaved;
 
   @override
   State<_AccountSheet> createState() => _AccountSheetState();
@@ -297,9 +301,16 @@ class _AccountSheetState extends State<_AccountSheet> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty) return;
+    final openingBalance = double.tryParse(_opening.text.trim());
+    if (openingBalance == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a valid opening balance.')),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
     try {
-      final openingBalance = double.tryParse(_opening.text.trim()) ?? 0;
       final account = widget.account;
       if (account == null) {
         await _service.createAccount(
@@ -319,9 +330,8 @@ class _AccountSheetState extends State<_AccountSheet> {
           isDefaultCash: _cashDefault,
         );
       }
-      widget.onSaved();
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

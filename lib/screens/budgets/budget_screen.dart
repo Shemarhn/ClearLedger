@@ -34,6 +34,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
 
       await BudgetAlertService.instance.notifyNewOverspentBudgets(budgets);
 
+      if (!mounted) return;
       setState(() {
         _budgets = budgets;
         _error = null;
@@ -50,7 +51,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
     await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => AddBudgetScreen(budget: budget)),
     );
-    _load();
+    if (mounted) _load();
   }
 
   @override

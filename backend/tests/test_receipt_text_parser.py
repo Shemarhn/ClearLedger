@@ -20,6 +20,14 @@ CASH TENDERED           2000.00
 CHANGE                  620.00
 """
 
+MULTI_ITEM_RECEIPT_WITHOUT_TOTAL = """
+DIGINET JAMAICA LIMITED
+DATE: 28/04/2026
+Dymo-Per Label maker       8650.00
+Dymo Labelling Tape        2500.00
+CARD ****1234
+"""
+
 
 class ReceiptTextParserTests(unittest.TestCase):
     def test_extracts_receipt_candidates_from_ocr_text(self):
@@ -39,6 +47,24 @@ class ReceiptTextParserTests(unittest.TestCase):
         self.assertEqual(parsed["currency"], "JMD")
         self.assertEqual(parsed["category"], "Food")
         self.assertGreater(parsed["confidence"], 0.5)
+
+    def test_uses_line_item_sum_when_receipt_has_no_total_line(self):
+        candidates = extract_receipt_candidates(MULTI_ITEM_RECEIPT_WITHOUT_TOTAL)
+
+        self.assertEqual(candidates["best_guess"]["amount"], 11150.0)
+
+        result = reconcile_receipt_result(
+            {
+                "merchant": "Diginet Jamaica Limited",
+                "amount": 8650.0,
+                "currency": "JMD",
+                "line_items": candidates["best_guess"]["line_items"],
+                "confidence": 0.9,
+            },
+            candidates,
+        )
+
+        self.assertEqual(result["amount"], 11150.0)
 
     def test_reconcile_anchors_llm_amount_to_candidate_total(self):
         candidates = extract_receipt_candidates(SAMPLE_RECEIPT)

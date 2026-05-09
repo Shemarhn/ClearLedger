@@ -35,6 +35,18 @@ class TransactionNormalizerTests(unittest.TestCase):
 
         self.assertEqual(normalized["line_items"], [])
 
+    def test_line_item_total_can_be_derived_from_quantity_and_unit_price(self):
+        normalized = normalize_parsed_transaction(
+            {
+                "line_items": [
+                    {"name": "Labels", "quantity": 2, "unit_price": 1250},
+                ],
+            },
+            include_line_items=True,
+        )
+
+        self.assertEqual(normalized["line_items"], [{"name": "Labels", "price": 2500.0}])
+
     def test_sanitized_payload_drops_unknown_fields(self):
         normalized = normalize_parsed_transaction(
             {

@@ -138,7 +138,11 @@ def _coerce_line_items(value: Any) -> list[dict]:
             continue
 
         name = _clean_string(item.get("name") or item.get("description") or item.get("item"))
-        price = _coerce_float(item.get("price") or item.get("amount") or item.get("total"))
+        quantity = _coerce_float(item.get("quantity") or item.get("qty"))
+        unit_price = _coerce_float(item.get("unit_price") or item.get("unitPrice"))
+        price = _coerce_float(item.get("total") or item.get("amount") or item.get("price"))
+        if price is None and quantity is not None and unit_price is not None:
+            price = quantity * unit_price
 
         if name is None and price is None:
             continue

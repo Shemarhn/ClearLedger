@@ -110,6 +110,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _deleting = true);
     try {
@@ -134,6 +135,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
     if (picked != null) {
+      if (!mounted) return;
       setState(() => _date = picked);
     }
   }
@@ -211,6 +213,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
 
   Widget _readOnlyDetails() {
     final lineItems = _lineItemsFromRawResponse();
+    final lineItemCurrency = widget.transaction.originalCurrency ?? widget.transaction.currency;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,7 +250,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
               dense: true,
               contentPadding: EdgeInsets.zero,
               title: Text(item.name),
-              trailing: Text('${widget.transaction.currency} ${item.price.toStringAsFixed(2)}'),
+              trailing: Text('$lineItemCurrency ${item.price.toStringAsFixed(2)}'),
             ),
           ),
         ],
@@ -271,7 +274,9 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             decoration: const InputDecoration(labelText: 'Amount'),
             validator: (value) {
               if (value == null || value.trim().isEmpty) return 'Amount is required';
-              if (double.tryParse(value.trim()) == null) return 'Enter a valid number';
+              final amount = double.tryParse(value.trim());
+              if (amount == null) return 'Enter a valid number';
+              if (amount <= 0) return 'Amount must be greater than zero';
               return null;
             },
           ),

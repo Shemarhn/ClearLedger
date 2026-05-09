@@ -113,6 +113,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
     );
 
     if (confirmed != true) return;
+    if (!mounted) return;
 
     setState(() => _deleting = true);
     try {
@@ -138,6 +139,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
       helpText: 'Pick budget month',
     );
     if (picked != null) {
+      if (!mounted) return;
       setState(() => _month = DateTime(picked.year, picked.month, 1));
     }
   }
