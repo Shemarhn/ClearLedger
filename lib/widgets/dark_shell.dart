@@ -140,77 +140,139 @@ class AppLogoMark extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final colorScheme = Theme.of(context).colorScheme;
-    final markColor = colorScheme.primary;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: dark ? AppConstants.darkSurfaceHigh : AppConstants.surfaceHigh,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: dark
+              ? [
+                  colorScheme.primary.withValues(alpha: 0.24),
+                  AppConstants.darkSurfaceHigh,
+                ]
+              : [
+                  colorScheme.primaryContainer.withValues(alpha: 0.92),
+                  colorScheme.surface,
+                ],
+        ),
         borderRadius: BorderRadius.circular(size * 0.28),
         border: Border.all(
-          color: markColor.withValues(alpha: dark ? 0.72 : 0.75),
+          color: colorScheme.primary.withValues(alpha: dark ? 0.70 : 0.62),
           width: 1.5,
         ),
         boxShadow: glow
             ? [
                 BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: 0.18),
-                  blurRadius: 24,
+                  color: colorScheme.primary.withValues(alpha: dark ? 0.30 : 0.22),
+                  blurRadius: 28,
                   spreadRadius: 1,
                 ),
               ]
             : null,
       ),
       child: CustomPaint(
-        painter: _LedgerMarkPainter(color: markColor),
+        painter: _ClearLedgerMarkPainter(
+          primary: colorScheme.primary,
+          secondary: colorScheme.tertiary,
+          onSurface: colorScheme.onSurface,
+          dark: dark,
+        ),
       ),
     );
   }
 }
 
-class _LedgerMarkPainter extends CustomPainter {
-  const _LedgerMarkPainter({required this.color});
+enum AppGlyph {
+  receipt,
+  ledger,
+  accounts,
+  budget,
+  insight,
+  settings,
+  scan,
+  card,
+  exchange,
+  cash,
+  bank,
+  wallet,
+  transfer,
+  inflow,
+  outflow,
+  document,
+}
 
-  final Color color;
+class _ClearLedgerMarkPainter extends CustomPainter {
+  const _ClearLedgerMarkPainter({
+    required this.primary,
+    required this.secondary,
+    required this.onSurface,
+    required this.dark,
+  });
+
+  final Color primary;
+  final Color secondary;
+  final Color onSurface;
+  final bool dark;
 
   @override
   void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final pageRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.29, h * 0.16, w * 0.46, h * 0.66),
+      Radius.circular(w * 0.11),
+    );
+
+    final pageFill = Paint()
+      ..color = (dark ? Colors.white : Colors.white).withValues(alpha: dark ? 0.08 : 0.58)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(pageRect, pageFill);
+
     final stroke = Paint()
-      ..color = color
+      ..color = primary
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
-      ..strokeWidth = size.width * 0.075;
+      ..strokeWidth = w * 0.072;
 
-    final page = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size.width * 0.27, size.height * 0.18, size.width * 0.48, size.height * 0.64),
-      Radius.circular(size.width * 0.08),
-    );
-    canvas.drawRRect(page, stroke);
+    canvas.drawRRect(pageRect, stroke);
 
     final fold = Path()
-      ..moveTo(size.width * 0.57, size.height * 0.18)
-      ..lineTo(size.width * 0.75, size.height * 0.36)
-      ..lineTo(size.width * 0.57, size.height * 0.36)
-      ..close();
+      ..moveTo(w * 0.57, h * 0.16)
+      ..quadraticBezierTo(w * 0.71, h * 0.22, w * 0.75, h * 0.36)
+      ..lineTo(w * 0.58, h * 0.35);
     canvas.drawPath(fold, stroke);
 
-    canvas.drawLine(
-      Offset(size.width * 0.38, size.height * 0.47),
-      Offset(size.width * 0.64, size.height * 0.47),
-      stroke,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.38, size.height * 0.60),
-      Offset(size.width * 0.64, size.height * 0.60),
-      stroke,
-    );
-    canvas.drawCircle(Offset(size.width * 0.39, size.height * 0.34), size.width * 0.035, stroke);
+    final checkPaint = Paint()
+      ..color = secondary
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = w * 0.09;
+    final check = Path()
+      ..moveTo(w * 0.34, h * 0.56)
+      ..lineTo(w * 0.45, h * 0.67)
+      ..quadraticBezierTo(w * 0.54, h * 0.54, w * 0.70, h * 0.39);
+    canvas.drawPath(check, checkPaint);
+
+    final scanPaint = Paint()
+      ..color = onSurface.withValues(alpha: dark ? 0.48 : 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = w * 0.035;
+    canvas.drawLine(Offset(w * 0.24, h * 0.32), Offset(w * 0.48, h * 0.32), scanPaint);
+    canvas.drawLine(Offset(w * 0.52, h * 0.75), Offset(w * 0.78, h * 0.75), scanPaint);
+    canvas.drawCircle(Offset(w * 0.28, h * 0.32), w * 0.026, scanPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _LedgerMarkPainter oldDelegate) {
-    return oldDelegate.color != color;
+  bool shouldRepaint(covariant _ClearLedgerMarkPainter oldDelegate) {
+    return oldDelegate.primary != primary ||
+        oldDelegate.secondary != secondary ||
+        oldDelegate.onSurface != onSurface ||
+        oldDelegate.dark != dark;
   }
 }
 
@@ -220,6 +282,7 @@ class ScreenHeader extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.icon,
+    this.glyph,
     this.trailing,
     this.centered = false,
     this.showLogo = false,
@@ -228,6 +291,7 @@ class ScreenHeader extends StatelessWidget {
   final String title;
   final String? subtitle;
   final IconData? icon;
+  final AppGlyph? glyph;
   final Widget? trailing;
   final bool centered;
   final bool showLogo;
@@ -278,10 +342,10 @@ class ScreenHeader extends StatelessWidget {
             )
           : Row(
               children: [
-                if (icon != null || showLogo) ...[
+                if (icon != null || glyph != null || showLogo) ...[
                   showLogo
                       ? const AppLogoMark(size: 48)
-                      : AppIconBadge(icon: icon!),
+                      : AppIconBadge(icon: icon, glyph: glyph),
                   const SizedBox(width: 14),
                 ],
                 Expanded(
@@ -318,17 +382,20 @@ class ScreenHeader extends StatelessWidget {
 class AppIconBadge extends StatelessWidget {
   const AppIconBadge({
     super.key,
-    required this.icon,
+    this.icon,
+    this.glyph,
     this.color,
     this.size = 48,
   });
 
-  final IconData icon;
+  final IconData? icon;
+  final AppGlyph? glyph;
   final Color? color;
   final double size;
 
   @override
   Widget build(BuildContext context) {
+    assert(icon != null || glyph != null);
     final dark = Theme.of(context).brightness == Brightness.dark;
     final badgeColor = color ?? Theme.of(context).colorScheme.primary;
     return Container(
@@ -339,8 +406,188 @@ class AppIconBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.32),
         border: Border.all(color: badgeColor.withValues(alpha: 0.35)),
       ),
-      child: Icon(icon, color: badgeColor, size: size * 0.52),
+      child: glyph == null
+          ? Icon(icon, color: badgeColor, size: size * 0.52)
+          : CustomPaint(
+              painter: _AppGlyphPainter(glyph: glyph!, color: badgeColor),
+            ),
     );
+  }
+}
+
+class _AppGlyphPainter extends CustomPainter {
+  const _AppGlyphPainter({required this.glyph, required this.color});
+
+  final AppGlyph glyph;
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = w * 0.075;
+    final fill = Paint()
+      ..color = color.withValues(alpha: 0.14)
+      ..style = PaintingStyle.fill;
+
+    void page({double left = 0.30, double top = 0.18, double width = 0.42, double height = 0.64}) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(w * left, h * top, w * width, h * height),
+          Radius.circular(w * 0.08),
+        ),
+        stroke,
+      );
+    }
+
+    void card({double left = 0.23, double top = 0.31, double width = 0.54, double height = 0.38}) {
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * left, h * top, w * width, h * height),
+        Radius.circular(w * 0.09),
+      );
+      canvas.drawRRect(rect, fill);
+      canvas.drawRRect(rect, stroke);
+    }
+
+    switch (glyph) {
+      case AppGlyph.receipt:
+        page(left: 0.29, width: 0.44);
+        canvas.drawLine(Offset(w * 0.40, h * 0.39), Offset(w * 0.62, h * 0.39), stroke);
+        canvas.drawLine(Offset(w * 0.40, h * 0.52), Offset(w * 0.58, h * 0.52), stroke);
+        canvas.drawLine(Offset(w * 0.40, h * 0.65), Offset(w * 0.64, h * 0.65), stroke);
+        break;
+      case AppGlyph.ledger:
+        page(left: 0.24, top: 0.22, width: 0.52, height: 0.56);
+        canvas.drawLine(Offset(w * 0.38, h * 0.34), Offset(w * 0.38, h * 0.72), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.34), Offset(w * 0.66, h * 0.34), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.50), Offset(w * 0.66, h * 0.50), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.66), Offset(w * 0.66, h * 0.66), stroke);
+        break;
+      case AppGlyph.accounts:
+        canvas.drawCircle(Offset(w * 0.37, h * 0.38), w * 0.10, stroke);
+        canvas.drawCircle(Offset(w * 0.63, h * 0.38), w * 0.10, stroke);
+        canvas.drawArc(Rect.fromLTWH(w * 0.22, h * 0.52, w * 0.30, h * 0.22), 3.24, 2.92, false, stroke);
+        canvas.drawArc(Rect.fromLTWH(w * 0.48, h * 0.52, w * 0.30, h * 0.22), 3.24, 2.92, false, stroke);
+        canvas.drawLine(Offset(w * 0.43, h * 0.48), Offset(w * 0.57, h * 0.48), stroke);
+        break;
+      case AppGlyph.budget:
+        canvas.drawCircle(Offset(w * 0.50, h * 0.50), w * 0.27, stroke);
+        canvas.drawPath(
+          Path()
+            ..moveTo(w * 0.50, h * 0.50)
+            ..lineTo(w * 0.50, h * 0.22)
+            ..arcTo(Rect.fromCircle(center: Offset(w * 0.50, h * 0.50), radius: w * 0.27), -1.57, 1.35, false),
+          stroke,
+        );
+        canvas.drawLine(Offset(w * 0.34, h * 0.68), Offset(w * 0.66, h * 0.68), stroke);
+        break;
+      case AppGlyph.insight:
+        canvas.drawCircle(Offset(w * 0.50, h * 0.42), w * 0.18, stroke);
+        canvas.drawLine(Offset(w * 0.41, h * 0.61), Offset(w * 0.59, h * 0.61), stroke);
+        canvas.drawLine(Offset(w * 0.44, h * 0.72), Offset(w * 0.56, h * 0.72), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.20), Offset(w * 0.50, h * 0.14), stroke);
+        canvas.drawLine(Offset(w * 0.27, h * 0.30), Offset(w * 0.21, h * 0.25), stroke);
+        canvas.drawLine(Offset(w * 0.73, h * 0.30), Offset(w * 0.79, h * 0.25), stroke);
+        break;
+      case AppGlyph.settings:
+        canvas.drawCircle(Offset(w * 0.50, h * 0.50), w * 0.12, stroke);
+        for (final angle in [0.0, 1.57, 3.14, 4.71]) {
+          final start = Offset(w * (0.50 + 0.23 * _cos(angle)), h * (0.50 + 0.23 * _sin(angle)));
+          final end = Offset(w * (0.50 + 0.32 * _cos(angle)), h * (0.50 + 0.32 * _sin(angle)));
+          canvas.drawLine(start, end, stroke);
+        }
+        break;
+      case AppGlyph.scan:
+        page(left: 0.32, top: 0.24, width: 0.36, height: 0.52);
+        canvas.drawLine(Offset(w * 0.20, h * 0.36), Offset(w * 0.80, h * 0.36), stroke);
+        canvas.drawLine(Offset(w * 0.24, h * 0.64), Offset(w * 0.76, h * 0.64), stroke);
+        break;
+      case AppGlyph.card:
+        card();
+        canvas.drawLine(Offset(w * 0.26, h * 0.43), Offset(w * 0.74, h * 0.43), stroke);
+        canvas.drawLine(Offset(w * 0.35, h * 0.58), Offset(w * 0.47, h * 0.58), stroke);
+        canvas.drawLine(Offset(w * 0.54, h * 0.58), Offset(w * 0.66, h * 0.58), stroke);
+        break;
+      case AppGlyph.exchange:
+        canvas.drawLine(Offset(w * 0.28, h * 0.38), Offset(w * 0.70, h * 0.38), stroke);
+        canvas.drawLine(Offset(w * 0.60, h * 0.28), Offset(w * 0.72, h * 0.38), stroke);
+        canvas.drawLine(Offset(w * 0.60, h * 0.48), Offset(w * 0.72, h * 0.38), stroke);
+        canvas.drawLine(Offset(w * 0.72, h * 0.62), Offset(w * 0.30, h * 0.62), stroke);
+        canvas.drawLine(Offset(w * 0.40, h * 0.52), Offset(w * 0.28, h * 0.62), stroke);
+        canvas.drawLine(Offset(w * 0.40, h * 0.72), Offset(w * 0.28, h * 0.62), stroke);
+        break;
+      case AppGlyph.cash:
+        card(left: 0.20, top: 0.34, width: 0.60, height: 0.32);
+        canvas.drawCircle(Offset(w * 0.50, h * 0.50), w * 0.09, stroke);
+        break;
+      case AppGlyph.bank:
+        canvas.drawPath(
+          Path()
+            ..moveTo(w * 0.22, h * 0.40)
+            ..lineTo(w * 0.50, h * 0.22)
+            ..lineTo(w * 0.78, h * 0.40),
+          stroke,
+        );
+        for (final x in [0.32, 0.50, 0.68]) {
+          canvas.drawLine(Offset(w * x, h * 0.44), Offset(w * x, h * 0.70), stroke);
+        }
+        canvas.drawLine(Offset(w * 0.24, h * 0.74), Offset(w * 0.76, h * 0.74), stroke);
+        break;
+      case AppGlyph.wallet:
+        card(left: 0.20, top: 0.30, width: 0.60, height: 0.42);
+        canvas.drawCircle(Offset(w * 0.66, h * 0.51), w * 0.035, stroke);
+        break;
+      case AppGlyph.transfer:
+        canvas.drawCircle(Offset(w * 0.32, h * 0.50), w * 0.10, stroke);
+        canvas.drawCircle(Offset(w * 0.68, h * 0.50), w * 0.10, stroke);
+        canvas.drawLine(Offset(w * 0.42, h * 0.43), Offset(w * 0.56, h * 0.43), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.35), Offset(w * 0.58, h * 0.43), stroke);
+        canvas.drawLine(Offset(w * 0.58, h * 0.57), Offset(w * 0.44, h * 0.57), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.65), Offset(w * 0.42, h * 0.57), stroke);
+        break;
+      case AppGlyph.inflow:
+        canvas.drawLine(Offset(w * 0.30, h * 0.66), Offset(w * 0.68, h * 0.28), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.28), Offset(w * 0.68, h * 0.28), stroke);
+        canvas.drawLine(Offset(w * 0.68, h * 0.28), Offset(w * 0.68, h * 0.46), stroke);
+        break;
+      case AppGlyph.outflow:
+        canvas.drawLine(Offset(w * 0.30, h * 0.34), Offset(w * 0.68, h * 0.72), stroke);
+        canvas.drawLine(Offset(w * 0.50, h * 0.72), Offset(w * 0.68, h * 0.72), stroke);
+        canvas.drawLine(Offset(w * 0.68, h * 0.72), Offset(w * 0.68, h * 0.54), stroke);
+        break;
+      case AppGlyph.document:
+        page(left: 0.31, top: 0.18, width: 0.42, height: 0.64);
+        final check = Path()
+          ..moveTo(w * 0.39, h * 0.56)
+          ..lineTo(w * 0.48, h * 0.65)
+          ..lineTo(w * 0.64, h * 0.42);
+        canvas.drawPath(check, stroke);
+        break;
+    }
+  }
+
+  double _sin(double value) {
+    if (value == 0) return 0;
+    if (value == 1.57) return 1;
+    if (value == 3.14) return 0;
+    return -1;
+  }
+
+  double _cos(double value) {
+    if (value == 0) return 1;
+    if (value == 1.57) return 0;
+    if (value == 3.14) return -1;
+    return 0;
+  }
+
+  @override
+  bool shouldRepaint(covariant _AppGlyphPainter oldDelegate) {
+    return oldDelegate.glyph != glyph || oldDelegate.color != color;
   }
 }
 

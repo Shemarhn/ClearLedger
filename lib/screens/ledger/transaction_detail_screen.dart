@@ -164,7 +164,7 @@ class _TransactionDetailScreenState extends State<TransactionDetailScreen> {
             ScreenHeader(
               title: 'Transaction details',
               subtitle: widget.transaction.merchant ?? widget.transaction.transactionType.label,
-              icon: Icons.receipt_long_outlined,
+              glyph: AppGlyph.document,
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [

@@ -184,7 +184,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ScreenHeader(
               title: 'Settings',
               subtitle: 'Profile, appearance, exports, and security',
-              icon: Icons.settings_outlined,
+              glyph: AppGlyph.settings,
               trailing: IconButton.filledTonal(
                 onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back),
@@ -194,7 +194,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             FinanceCard(
               child: ListTile(
                 contentPadding: EdgeInsets.zero,
-                leading: const AppIconBadge(icon: Icons.person_outline),
+                leading: const AppIconBadge(glyph: AppGlyph.accounts),
                 title: Text(user?.email ?? 'No email'),
                 subtitle: const Text('Profile & account'),
               ),
@@ -228,7 +228,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Row(
                     children: [
-                      const AppIconBadge(icon: Icons.currency_exchange, size: 42),
+                      const AppIconBadge(glyph: AppGlyph.exchange, size: 42),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
@@ -271,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             FinanceCard(
               child: SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                secondary: const AppIconBadge(icon: Icons.fingerprint, size: 42),
+                secondary: const AppIconBadge(glyph: AppGlyph.settings, size: 42),
                 title: const Text('Biometric unlock'),
                 subtitle: Text(
                   _biometricAvailable
@@ -290,7 +290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const AppIconBadge(icon: Icons.picture_as_pdf_outlined, size: 42),
+                    leading: const AppIconBadge(glyph: AppGlyph.document, size: 42),
                     title: const Text('Export PDF'),
                     subtitle: const Text('This month'),
                     onTap: _exporting ? null : () => _export(pdf: true),
@@ -298,7 +298,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const Divider(height: 0),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const AppIconBadge(icon: Icons.table_chart_outlined, size: 42),
+                    leading: const AppIconBadge(glyph: AppGlyph.ledger, size: 42),
                     title: const Text('Export CSV'),
                     subtitle: const Text('This month'),
                     onTap: _exporting ? null : () => _export(pdf: false),

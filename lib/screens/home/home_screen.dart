@@ -102,26 +102,26 @@ class _AppDrawer extends StatelessWidget {
               ),
             ),
             _DrawerItem(
-              icon: Icons.pie_chart_outline,
+              glyph: AppGlyph.budget,
               title: 'Budgets',
               subtitle: 'Limits and category progress',
               onTap: () => onOpenPage(const BudgetScreen()),
             ),
             _DrawerItem(
-              icon: Icons.account_balance_wallet_outlined,
+              glyph: AppGlyph.accounts,
               title: 'Accounts',
               subtitle: 'Cash, banks, cards, and routing',
               onTap: () => onOpenPage(const AccountsScreen()),
             ),
             _DrawerItem(
-              icon: Icons.auto_awesome_outlined,
+              glyph: AppGlyph.insight,
               title: 'AI Overview',
               subtitle: 'Once-daily spending analysis',
               onTap: () => onOpenPage(const AiOverviewScreen()),
             ),
             const Divider(height: 34),
             _DrawerItem(
-              icon: Icons.settings_outlined,
+              glyph: AppGlyph.settings,
               title: 'Settings',
               subtitle: 'Theme, currency, exports, and security',
               onTap: () => onOpenPage(const SettingsScreen()),
@@ -135,13 +135,13 @@ class _AppDrawer extends StatelessWidget {
 
 class _DrawerItem extends StatelessWidget {
   const _DrawerItem({
-    required this.icon,
+    required this.glyph,
     required this.title,
     required this.subtitle,
     required this.onTap,
   });
 
-  final IconData icon;
+  final AppGlyph glyph;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
@@ -151,7 +151,7 @@ class _DrawerItem extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: AppIconBadge(icon: icon, size: 42),
+        leading: AppIconBadge(glyph: glyph, size: 42),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
         subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
         trailing: const Icon(Icons.chevron_right),

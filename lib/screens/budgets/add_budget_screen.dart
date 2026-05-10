@@ -156,7 +156,7 @@ class _AddBudgetScreenState extends State<AddBudgetScreen> {
             ScreenHeader(
               title: _editing ? 'Edit budget' : 'Add budget',
               subtitle: 'Set a monthly limit for one category',
-              icon: Icons.pie_chart_outline,
+              glyph: AppGlyph.budget,
               trailing: IconButton.filledTonal(
                 onPressed: busy ? null : () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.arrow_back),

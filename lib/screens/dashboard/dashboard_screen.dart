@@ -83,7 +83,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onRefresh: _load,
                     child: ListView(
                       children: [
-                        _Header(onSettings: () {
+        _Header(onSettings: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const SettingsScreen()),
                           );
@@ -161,7 +161,7 @@ class _NetWorthCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const AppIconBadge(icon: Icons.account_balance_wallet_outlined, size: 44),
+              const AppIconBadge(glyph: AppGlyph.accounts, size: 44),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
@@ -281,7 +281,7 @@ class _AccountStrip extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppIconBadge(icon: _iconForAccount(account.type), size: 38),
+                  AppIconBadge(glyph: _glyphForAccount(account.type), size: 38),
                   const Spacer(),
                   Text(
                     account.name,
@@ -307,19 +307,19 @@ class _AccountStrip extends StatelessWidget {
     );
   }
 
-  IconData _iconForAccount(AccountType type) {
+  AppGlyph _glyphForAccount(AccountType type) {
     switch (type) {
       case AccountType.cash:
-        return Icons.payments_outlined;
+        return AppGlyph.cash;
       case AccountType.checking:
       case AccountType.savings:
-        return Icons.account_balance_outlined;
+        return AppGlyph.bank;
       case AccountType.credit:
-        return Icons.credit_card_outlined;
+        return AppGlyph.card;
       case AccountType.wallet:
-        return Icons.account_balance_wallet_outlined;
+        return AppGlyph.wallet;
       case AccountType.other:
-        return Icons.savings_outlined;
+        return AppGlyph.accounts;
     }
   }
 }

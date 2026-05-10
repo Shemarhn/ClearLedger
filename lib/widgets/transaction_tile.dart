@@ -46,7 +46,7 @@ class TransactionTile extends StatelessWidget {
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        leading: AppIconBadge(icon: _iconForType(transaction.transactionType), color: color),
+        leading: AppIconBadge(glyph: _glyphForType(transaction.transactionType), color: color),
         title: Text(
           transaction.merchant ?? transaction.transactionType.label,
           maxLines: 1,
@@ -79,20 +79,20 @@ class TransactionTile extends StatelessWidget {
     return AppConstants.errorRed;
   }
 
-  IconData _iconForType(TransactionType type) {
+  AppGlyph _glyphForType(TransactionType type) {
     switch (type) {
       case TransactionType.expense:
-        return Icons.trending_down;
+        return AppGlyph.outflow;
       case TransactionType.income:
-        return Icons.trending_up;
+        return AppGlyph.inflow;
       case TransactionType.transfer:
-        return Icons.compare_arrows;
+        return AppGlyph.transfer;
       case TransactionType.withdrawal:
-        return Icons.atm_outlined;
+        return AppGlyph.cash;
       case TransactionType.deposit:
-        return Icons.savings_outlined;
+        return AppGlyph.bank;
       case TransactionType.refund:
-        return Icons.replay;
+        return AppGlyph.inflow;
     }
   }
 }

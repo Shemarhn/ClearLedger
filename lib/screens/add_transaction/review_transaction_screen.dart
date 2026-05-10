@@ -461,7 +461,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
               ScreenHeader(
                 title: 'Review movement',
                 subtitle: 'Confirm the detected details before saving',
-                icon: Icons.fact_check_outlined,
+                glyph: AppGlyph.document,
                 trailing: IconButton.filledTonal(
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back),
@@ -474,7 +474,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                   children: [
                     Row(
                       children: [
-                        const AppIconBadge(icon: Icons.document_scanner_outlined, size: 42),
+                        const AppIconBadge(glyph: AppGlyph.scan, size: 42),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -704,7 +704,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
-          const AppIconBadge(icon: Icons.currency_exchange, size: 38),
+          const AppIconBadge(glyph: AppGlyph.exchange, size: 38),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -734,7 +734,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
           Row(
             children: [
               const AppIconBadge(
-                icon: Icons.credit_card_off_outlined,
+                glyph: AppGlyph.card,
                 color: AppConstants.warningAmber,
                 size: 38,
               ),
