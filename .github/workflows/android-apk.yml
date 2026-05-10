@@ -37,49 +37,25 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Configure release signing
-        if: startsWith(github.ref, 'refs/tags/v')
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$ANDROID_KEYSTORE_PASSWORD" ] || [ -z "$ANDROID_KEY_ALIAS" ] || [ -z "$ANDROID_KEY_PASSWORD" ]; then
-            echo "Missing Android signing secrets for tagged release builds."
-            exit 1
-          fi
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
-          {
-            echo "storeFile=upload-keystore.jks"
-            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
-            echo "keyAlias=$ANDROID_KEY_ALIAS"
-            echo "keyPassword=$ANDROID_KEY_PASSWORD"
-          } > android/key.properties
-
-      - name: Build APK
-        env:
-          BUILD_MODE: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'debug' }}
+      - name: Build tester APK
         run: >
-          flutter build apk --${BUILD_MODE}
+          flutter build apk --debug
           --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
           --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
           --dart-define=API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://clearledger-production.up.railway.app' }}
           --dart-define=ENABLE_PUSH_NOTIFICATIONS=false
 
       - name: Rename APK
-        env:
-          BUILD_MODE: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || 'debug' }}
-        run: cp build/app/outputs/flutter-apk/app-${BUILD_MODE}.apk clearledger-${BUILD_MODE}.apk
+        run: cp build/app/outputs/flutter-apk/app-debug.apk clearledger-tester.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: clearledger-apk
-          path: clearledger-*.apk
+          path: clearledger-tester.apk
 
       - name: Attach APK to GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: clearledger-release.apk
+          files: clearledger-tester.apk
