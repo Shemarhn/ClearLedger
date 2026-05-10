@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/constants.dart';
 import '../../widgets/dark_shell.dart';
 import '../add_transaction/add_transaction_screen.dart';
 import '../ai_overview/ai_overview_screen.dart';
@@ -66,10 +65,11 @@ class _AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final primary = Theme.of(context).colorScheme.primary;
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
+    final scheme = Theme.of(context).colorScheme;
+    final primary = scheme.primary;
+    final muted = scheme.onSurface.withValues(alpha: 0.62);
     return Drawer(
-      backgroundColor: dark ? AppConstants.darkSurface : AppConstants.surface,
+      backgroundColor: dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
@@ -157,7 +157,7 @@ class _DrawerItem extends StatelessWidget {
         trailing: const Icon(Icons.chevron_right),
         minLeadingWidth: 42,
         contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         onTap: onTap,
       ),
     );

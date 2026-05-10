@@ -47,10 +47,10 @@ class AppConstants {
 
   static const Color dynamicSeed = Color(0xFF006D75);
   static const Color primaryColor = Color(0xFF1B1B1F);
-  static const Color accentColor = Color(0xFF006D75);
-  static const Color background = Color(0xFFFCFBFF);
-  static const Color surface = Color(0xFFFFFBFE);
-  static const Color surfaceHigh = Color(0xFFECEEF6);
+  static const Color accentColor = Color(0xFF00A98F);
+  static const Color background = Color(0xFFF8FAF7);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceHigh = Color(0xFFE2E8E2);
   static const Color lightStroke = Color(0xFFDDE2EA);
   static const Color darkBackground = Color(0xFF111318);
   static const Color darkSurface = Color(0xFF1B1B20);
@@ -58,10 +58,10 @@ class AppConstants {
   static const Color darkStroke = Color(0xFF3F4652);
   static const Color darkText = Color(0xFFE5E2E9);
   static const Color darkMuted = Color(0xFFC7C5D0);
-  static const Color champagne = Color(0xFFFFD39B);
-  static const Color champagneHigh = Color(0xFFFFE0B6);
-  static const Color champagneMuted = Color(0xFFD3B285);
-  static const Color mint = champagne;
+  static const Color champagne = Color(0xFFFFDAD6);
+  static const Color champagneHigh = Color(0xFFFFEDEA);
+  static const Color champagneMuted = Color(0xFFB94742);
+  static const Color mint = Color(0xFF00A98F);
   static const Color errorRed = Color(0xFFFF8B8B);
   static const Color successGreen = Color(0xFF6EE7A0);
   static const Color warningAmber = Color(0xFFFFC857);

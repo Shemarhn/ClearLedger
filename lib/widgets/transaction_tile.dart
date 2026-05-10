@@ -17,7 +17,7 @@ class TransactionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _colorForType(transaction.transactionType);
+    final color = _colorForType(context, transaction.transactionType);
     final dateText = DateFormat.MMMd().format(transaction.transactionDate);
     final amountPrefix = transaction.transactionType.isInflow
         ? '+'
@@ -25,21 +25,22 @@ class TransactionTile extends StatelessWidget {
             ? ''
             : '-';
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final surface = dark ? AppConstants.darkSurface : Theme.of(context).colorScheme.surface;
-    final stroke = dark ? AppConstants.darkStroke : AppConstants.lightStroke;
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
+    final scheme = Theme.of(context).colorScheme;
+    final surface = dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest;
+    final stroke = scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1);
+    final muted = scheme.onSurface.withValues(alpha: 0.62);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: stroke),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.18 : 0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: dark ? 0.12 : 0.05),
+            blurRadius: dark ? 10 : 16,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -73,9 +74,9 @@ class TransactionTile extends StatelessWidget {
     );
   }
 
-  Color _colorForType(TransactionType type) {
+  Color _colorForType(BuildContext context, TransactionType type) {
     if (type.isInflow) return AppConstants.successGreen;
-    if (type.isTransfer) return AppConstants.accentColor;
+    if (type.isTransfer) return Theme.of(context).colorScheme.primary;
     return AppConstants.errorRed;
   }
 

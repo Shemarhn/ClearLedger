@@ -81,23 +81,34 @@ class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObse
     return DynamicColorBuilder(
       builder: (lightDynamic, darkDynamic) => AnimatedBuilder(
         animation: _settingsService,
-        builder: (context, _) => MaterialApp(
-          debugShowCheckedModeBanner: false,
-          title: 'ClearLedger',
-          theme: AppTheme.lightThemeFor(lightDynamic),
-          darkTheme: AppTheme.darkThemeFor(darkDynamic),
-          themeMode: _settingsService.themeMode,
-          home: StreamBuilder(
-            stream: _authService.authStateChanges,
-            builder: (context, snapshot) {
-              if (_authService.isLoggedIn) {
-                _settingsService.load();
-                return const HomeScreen();
-              }
-              return const LoginScreen();
-            },
-          ),
-        ),
+        builder: (context, _) {
+          final useSystemAccent = _settingsService.usesSystemAccent;
+          final seedColor = _settingsService.accentSeedColor;
+
+          return MaterialApp(
+            debugShowCheckedModeBanner: false,
+            title: 'ClearLedger',
+            theme: AppTheme.lightThemeFor(
+              useSystemAccent ? lightDynamic : null,
+              seedColor,
+            ),
+            darkTheme: AppTheme.darkThemeFor(
+              useSystemAccent ? darkDynamic : null,
+              seedColor,
+            ),
+            themeMode: _settingsService.themeMode,
+            home: StreamBuilder(
+              stream: _authService.authStateChanges,
+              builder: (context, snapshot) {
+                if (_authService.isLoggedIn) {
+                  _settingsService.load();
+                  return const HomeScreen();
+                }
+                return const LoginScreen();
+              },
+            ),
+          );
+        },
       ),
     );
   }

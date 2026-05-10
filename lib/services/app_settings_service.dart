@@ -1,7 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../core/constants.dart';
 import '../core/supabase_client.dart';
+
+class AppAccentThemeOption {
+  const AppAccentThemeOption({
+    required this.id,
+    required this.label,
+    required this.seedColor,
+    this.usesSystemColor = false,
+  });
+
+  final String id;
+  final String label;
+  final Color seedColor;
+  final bool usesSystemColor;
+}
 
 class AppSettingsService extends ChangeNotifier {
   AppSettingsService._();
@@ -26,14 +41,56 @@ class AppSettingsService extends ChangeNotifier {
 
   static const _themeKey = 'app_theme_mode';
   static const _currencyKey = 'preferred_currency';
+  static const _accentThemeKey = 'accent_theme_id';
+  static const systemAccentThemeId = 'system';
+
+  static const accentThemes = [
+    AppAccentThemeOption(
+      id: systemAccentThemeId,
+      label: 'System',
+      seedColor: AppConstants.dynamicSeed,
+      usesSystemColor: true,
+    ),
+    AppAccentThemeOption(
+      id: 'mint',
+      label: 'Mint',
+      seedColor: Color(0xFF00A98F),
+    ),
+    AppAccentThemeOption(
+      id: 'graphite',
+      label: 'Graphite',
+      seedColor: Color(0xFF2E3A46),
+    ),
+    AppAccentThemeOption(
+      id: 'violet',
+      label: 'Violet',
+      seedColor: Color(0xFF6750A4),
+    ),
+    AppAccentThemeOption(
+      id: 'sky',
+      label: 'Sky',
+      seedColor: Color(0xFF006DCC),
+    ),
+    AppAccentThemeOption(
+      id: 'rose',
+      label: 'Rose',
+      seedColor: Color(0xFFB94742),
+    ),
+  ];
 
   ThemeMode _themeMode = ThemeMode.dark;
   String _preferredCurrency = 'JMD';
+  String _accentThemeId = 'mint';
   bool _loaded = false;
   String? _profileLoadedUserId;
 
   ThemeMode get themeMode => _themeMode;
   String get preferredCurrency => _preferredCurrency;
+  String get accentThemeId => _accentThemeId;
+  AppAccentThemeOption get accentTheme =>
+      accentThemes.firstWhere((theme) => theme.id == _accentThemeId);
+  Color get accentSeedColor => accentTheme.seedColor;
+  bool get usesSystemAccent => accentTheme.usesSystemColor;
   bool get loaded => _loaded;
 
   Future<void> load() async {
@@ -44,6 +101,7 @@ class AppSettingsService extends ChangeNotifier {
     if (!_loaded) {
       _themeMode = _themeModeFromString(prefs.getString(_themeKey)) ?? ThemeMode.dark;
       _preferredCurrency = _normalizeCurrency(prefs.getString(_currencyKey)) ?? 'JMD';
+      _accentThemeId = _normalizeAccentTheme(prefs.getString(_accentThemeKey)) ?? 'mint';
     }
 
     if (user != null) {
@@ -75,6 +133,19 @@ class AppSettingsService extends ChangeNotifier {
     _themeMode = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeKey, _themeModeToString(mode));
+    notifyListeners();
+  }
+
+  Future<void> setAccentTheme(String themeId) async {
+    await load();
+    final normalized = _normalizeAccentTheme(themeId);
+    if (normalized == null) {
+      throw Exception('Unsupported theme: $themeId');
+    }
+
+    _accentThemeId = normalized;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_accentThemeKey, normalized);
     notifyListeners();
   }
 
@@ -125,6 +196,15 @@ class AppSettingsService extends ChangeNotifier {
       case ThemeMode.dark:
         return 'dark';
     }
+  }
+
+  String? _normalizeAccentTheme(String? themeId) {
+    final normalized = themeId?.trim().toLowerCase();
+    if (normalized == null ||
+        !accentThemes.any((theme) => theme.id == normalized)) {
+      return null;
+    }
+    return normalized;
   }
 
   String? _normalizeCurrency(String? currency) {

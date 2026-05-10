@@ -33,6 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
   ThemeMode _themeMode = ThemeMode.dark;
   String _currency = 'JMD';
+  String _accentThemeId = 'mint';
   ExchangeRateSnapshot? _rateSnapshot;
 
   @override
@@ -51,6 +52,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {
       _themeMode = _settingsService.themeMode;
       _currency = _settingsService.preferredCurrency;
+      _accentThemeId = _settingsService.accentThemeId;
       _rateSnapshot = snapshot;
     });
   }
@@ -58,6 +60,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _setThemeMode(ThemeMode mode) async {
     setState(() => _themeMode = mode);
     await _settingsService.setThemeMode(mode);
+  }
+
+  Future<void> _setAccentTheme(String themeId) async {
+    setState(() => _accentThemeId = themeId);
+    await _settingsService.setAccentTheme(themeId);
   }
 
   Future<void> _setCurrency(String currency) async {
@@ -218,6 +225,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _themeChip(ThemeMode.dark, Icons.dark_mode_outlined, 'Dark'),
                     ],
                   ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Accent color',
+                    style: TextStyle(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .onSurface
+                          .withValues(alpha: 0.70),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: AppSettingsService.accentThemes
+                        .map(_accentSwatch)
+                        .toList(),
+                  ),
                 ],
               ),
             ),
@@ -333,6 +359,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
       avatar: Icon(icon, size: 18),
       label: Text(label),
       onSelected: (_) => _setThemeMode(mode),
+    );
+  }
+
+  Widget _accentSwatch(AppAccentThemeOption option) {
+    final selected = _accentThemeId == option.id;
+    final scheme = Theme.of(context).colorScheme;
+    final swatchColor =
+        option.usesSystemColor ? scheme.primary : option.seedColor;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _setAccentTheme(option.id),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 102,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: selected
+              ? scheme.primaryContainer.withValues(alpha: 0.72)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.62),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? scheme.primary : scheme.outlineVariant,
+            width: selected ? 1.7 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: swatchColor,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: scheme.onSurface.withValues(alpha: 0.12),
+                ),
+              ),
+              child: option.usesSystemColor
+                  ? Icon(
+                      Icons.palette_outlined,
+                      size: 13,
+                      color: scheme.onPrimary,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                option.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

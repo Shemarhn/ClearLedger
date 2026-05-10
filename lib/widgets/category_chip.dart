@@ -18,6 +18,7 @@ class CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = AppConstants.categoryColors[category] ?? Colors.grey;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return ChoiceChip(
       label: Text(category),
       selected: selected,
@@ -25,7 +26,9 @@ class CategoryChip extends StatelessWidget {
       selectedColor: color.withValues(alpha: 0.2),
       onSelected: (_) => onTap?.call(),
       side: BorderSide(
-        color: selected ? color : (dark ? AppConstants.darkStroke : AppConstants.lightStroke),
+        color: selected
+            ? color
+            : scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1),
       ),
     );
   }

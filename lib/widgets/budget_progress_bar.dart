@@ -23,7 +23,8 @@ class BudgetProgressBar extends StatelessWidget {
         ? AppConstants.errorRed
         : AppConstants.categoryColors[budget.category] ?? AppConstants.accentColor;
     final currency = AppSettingsService.instance.preferredCurrency;
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final scheme = Theme.of(context).colorScheme;
+    final onSurface = scheme.onSurface;
     final muted = onSurface.withValues(alpha: 0.62);
 
     final dark = Theme.of(context).brightness == Brightness.dark;
@@ -34,7 +35,7 @@ class BudgetProgressBar extends StatelessWidget {
         padding: EdgeInsets.zero,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(16),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -74,7 +75,7 @@ class BudgetProgressBar extends StatelessWidget {
                   valueColor: AlwaysStoppedAnimation<Color>(color),
                   backgroundColor: dark
                       ? Colors.white.withValues(alpha: 0.08)
-                      : AppConstants.surfaceHigh,
+                      : scheme.surfaceContainerHighest,
                 ),
                 const SizedBox(height: 8),
                 Text(

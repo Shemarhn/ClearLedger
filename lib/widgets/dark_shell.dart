@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/constants.dart';
-
 class DarkShell extends StatelessWidget {
   const DarkShell({
     super.key,
@@ -16,24 +14,9 @@ class DarkShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: dark
-              ? const [
-                  AppConstants.darkBackground,
-                  AppConstants.darkSurface,
-                  AppConstants.darkBackground,
-                ]
-              : const [
-                  AppConstants.surface,
-                  AppConstants.background,
-                  AppConstants.surfaceHigh,
-                ],
-        ),
+        color: Theme.of(context).scaffoldBackgroundColor,
       ),
       child: SafeArea(
         bottom: false,
@@ -58,7 +41,7 @@ class FinanceCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.color,
-    this.radius = 26,
+    this.radius = 16,
   });
 
   final Widget child;
@@ -69,9 +52,10 @@ class FinanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final surfaceColor = color ??
-        (dark ? AppConstants.darkSurface : Theme.of(context).colorScheme.surface);
-    final borderColor = dark ? AppConstants.darkStroke : AppConstants.lightStroke;
+    final scheme = Theme.of(context).colorScheme;
+    final surfaceColor =
+        color ?? (dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest);
+    final borderColor = scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 0.95);
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
@@ -80,10 +64,10 @@ class FinanceCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: dark
-                ? Colors.black.withValues(alpha: 0.26)
-                : Colors.black.withValues(alpha: 0.07),
-            blurRadius: dark ? 24 : 18,
-            offset: const Offset(0, 14),
+                ? Colors.black.withValues(alpha: 0.14)
+                : Colors.black.withValues(alpha: 0.06),
+            blurRadius: dark ? 10 : 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -144,30 +128,17 @@ class AppLogoMark extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: dark
-              ? [
-                  colorScheme.primary.withValues(alpha: 0.24),
-                  AppConstants.darkSurfaceHigh,
-                ]
-              : [
-                  colorScheme.primaryContainer.withValues(alpha: 0.92),
-                  colorScheme.surface,
-                ],
-        ),
-        borderRadius: BorderRadius.circular(size * 0.28),
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(size * 0.24),
         border: Border.all(
-          color: colorScheme.primary.withValues(alpha: dark ? 0.70 : 0.62),
-          width: 1.5,
+          color: colorScheme.primary.withValues(alpha: dark ? 0.46 : 0.34),
+          width: 1.2,
         ),
         boxShadow: glow
             ? [
                 BoxShadow(
-                  color: colorScheme.primary.withValues(alpha: dark ? 0.30 : 0.22),
-                  blurRadius: 28,
-                  spreadRadius: 1,
+                  color: colorScheme.primary.withValues(alpha: dark ? 0.18 : 0.14),
+                  blurRadius: 18,
                 ),
               ]
             : null,
@@ -299,28 +270,29 @@ class ScreenHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final scheme = Theme.of(context).colorScheme;
+    final onSurface = scheme.onSurface;
     final muted = onSurface.withValues(alpha: dark ? 0.62 : 0.68);
-    final surface = dark ? AppConstants.darkSurface : AppConstants.surface;
+    final surface = dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest;
 
     final titleWidget = Text(
       title,
       textAlign: centered ? TextAlign.center : TextAlign.start,
       style: TextStyle(
         color: centered ? Theme.of(context).colorScheme.primary : onSurface,
-        fontSize: centered ? 32 : 27,
+        fontSize: centered ? 30 : 25,
         fontWeight: FontWeight.w900,
-        height: 1.02,
+        height: 1.08,
       ),
     );
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(22, centered ? 28 : 20, 22, 24),
+      padding: EdgeInsets.fromLTRB(18, centered ? 24 : 18, 18, 20),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: dark ? AppConstants.darkStroke : AppConstants.lightStroke),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1)),
       ),
       child: centered
           ? Column(
@@ -396,15 +368,23 @@ class AppIconBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     assert(icon != null || glyph != null);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final badgeColor = color ?? Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final hasCustomColor = color != null;
+    final badgeColor = color ?? scheme.onPrimaryContainer;
+    final badgeFill = hasCustomColor
+        ? color!.withValues(alpha: 0.13)
+        : scheme.primaryContainer;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: badgeColor.withValues(alpha: dark ? 0.13 : 0.18),
-        borderRadius: BorderRadius.circular(size * 0.32),
-        border: Border.all(color: badgeColor.withValues(alpha: 0.35)),
+        color: badgeFill,
+        borderRadius: BorderRadius.circular(size * 0.24),
+        border: Border.all(
+          color: hasCustomColor
+              ? badgeColor.withValues(alpha: 0.28)
+              : scheme.outlineVariant.withValues(alpha: 0.70),
+        ),
       ),
       child: glyph == null
           ? Icon(icon, color: badgeColor, size: size * 0.52)

@@ -217,15 +217,14 @@ class _MiniMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: dark
-            ? Colors.white.withValues(alpha: 0.06)
-            : Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.44),
-        borderRadius: BorderRadius.circular(18),
+        color: dark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: dark ? Colors.white.withValues(alpha: 0.04) : AppConstants.lightStroke,
+          color: scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1),
         ),
       ),
       child: Column(
