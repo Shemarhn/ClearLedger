@@ -98,7 +98,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                       const ScreenHeader(
                         title: 'AI Overview',
                         subtitle: 'A once-daily read on your money habits',
-                        icon: Icons.auto_awesome_outlined,
+                        glyph: AppGlyph.insight,
                       ),
                       const SizedBox(height: 18),
                       FinanceCard(
@@ -119,7 +119,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                     const ScreenHeader(
                       title: 'AI Overview',
                       subtitle: 'A once-daily read on your money habits',
-                      icon: Icons.auto_awesome_outlined,
+                      glyph: AppGlyph.insight,
                     ),
                     const SizedBox(height: 18),
                     FinanceCard(
@@ -128,7 +128,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                         children: [
                           Row(
                             children: [
-                              const AppIconBadge(icon: Icons.auto_awesome, size: 42),
+                              const AppIconBadge(glyph: AppGlyph.insight, size: 42),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
@@ -184,12 +184,12 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                       ],
                     ),
                     const SizedBox(height: 18),
-                    _InsightCard(title: 'Insights', items: _insights, icon: Icons.insights),
+                    _InsightCard(title: 'Insights', items: _insights, glyph: AppGlyph.insight),
                     const SizedBox(height: 12),
                     _InsightCard(
                       title: 'Suggestions',
                       items: _suggestions,
-                      icon: Icons.tips_and_updates_outlined,
+                      glyph: AppGlyph.document,
                     ),
                     const SizedBox(height: 20),
                   ],
@@ -285,12 +285,12 @@ class _InsightCard extends StatelessWidget {
   const _InsightCard({
     required this.title,
     required this.items,
-    required this.icon,
+    required this.glyph,
   });
 
   final String title;
   final List<String> items;
-  final IconData icon;
+  final AppGlyph glyph;
 
   @override
   Widget build(BuildContext context) {
@@ -300,7 +300,7 @@ class _InsightCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              AppIconBadge(icon: icon, size: 40),
+              AppIconBadge(glyph: glyph, size: 40),
               const SizedBox(width: 8),
               Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
             ],

@@ -114,7 +114,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     ScreenHeader(
                       title: 'Accounts',
                       subtitle: 'Cash, banks, cards, and routing rules',
-                      icon: Icons.account_balance_wallet_outlined,
+                      glyph: AppGlyph.accounts,
                       trailing: IconButton.filled(
                         onPressed: _addAccount,
                         icon: const Icon(Icons.add),
@@ -190,7 +190,7 @@ class _AccountCard extends StatelessWidget {
     return FinanceCard(
       child: Row(
         children: [
-          AppIconBadge(icon: _iconFor(account.type)),
+          AppIconBadge(glyph: _glyphFor(account.type)),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -242,19 +242,19 @@ class _AccountCard extends StatelessWidget {
     );
   }
 
-  IconData _iconFor(AccountType type) {
+  AppGlyph _glyphFor(AccountType type) {
     switch (type) {
       case AccountType.cash:
-        return Icons.payments_outlined;
+        return AppGlyph.cash;
       case AccountType.checking:
       case AccountType.savings:
-        return Icons.account_balance_outlined;
+        return AppGlyph.bank;
       case AccountType.credit:
-        return Icons.credit_card_outlined;
+        return AppGlyph.card;
       case AccountType.wallet:
-        return Icons.account_balance_wallet_outlined;
+        return AppGlyph.wallet;
       case AccountType.other:
-        return Icons.savings_outlined;
+        return AppGlyph.accounts;
     }
   }
 }

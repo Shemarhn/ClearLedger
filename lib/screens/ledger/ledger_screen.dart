@@ -67,7 +67,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
             const ScreenHeader(
               title: 'Ledger',
               subtitle: 'Expenses, inflows, deposits, withdrawals, and transfers',
-              icon: Icons.list_alt_outlined,
+              glyph: AppGlyph.ledger,
             ),
             const SizedBox(height: 18),
             FinanceCard(
@@ -121,7 +121,7 @@ class _LedgerScreenState extends State<LedgerScreen> {
                                     FinanceCard(
                                       child: Column(
                                         children: const [
-                                          AppIconBadge(icon: Icons.receipt_long_outlined),
+                                          AppIconBadge(glyph: AppGlyph.receipt),
                                           SizedBox(height: 14),
                                           Text(
                                             'No transactions found.',

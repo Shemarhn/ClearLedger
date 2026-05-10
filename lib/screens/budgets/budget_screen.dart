@@ -67,7 +67,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                     ScreenHeader(
                       title: 'Budgets',
                       subtitle: 'Limits and category progress',
-                      icon: Icons.pie_chart_outline,
+                      glyph: AppGlyph.budget,
                       trailing: IconButton.filled(
                         onPressed: () => _openAddBudget(),
                         icon: const Icon(Icons.add),
@@ -91,7 +91,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
                       const FinanceCard(
                         child: Column(
                           children: [
-                            AppIconBadge(icon: Icons.pie_chart_outline),
+                            AppIconBadge(glyph: AppGlyph.budget),
                             SizedBox(height: 14),
                             Text(
                               'No budgets yet.',

@@ -116,7 +116,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const ScreenHeader(
               title: 'Add movement',
               subtitle: 'Scan a receipt or describe the movement',
-              icon: Icons.add_box_outlined,
+              glyph: AppGlyph.scan,
             ),
             const SizedBox(height: 18),
             _photoMode(),
@@ -136,7 +136,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppIconBadge(icon: Icons.receipt_long_outlined, size: 50),
+          const AppIconBadge(glyph: AppGlyph.receipt, size: 50),
           const SizedBox(height: 18),
           const Text(
             'Read a receipt or ATM slip',
@@ -179,7 +179,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppIconBadge(icon: Icons.edit_note_outlined, size: 50),
+          const AppIconBadge(glyph: AppGlyph.document, size: 50),
           const SizedBox(height: 18),
           const Text(
             'Insert text',
