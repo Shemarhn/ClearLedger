@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
 
 import '../../services/auth_service.dart';
+import '../../widgets/dark_shell.dart';
 import '../home/home_screen.dart';
 import 'register_screen.dart';
 
@@ -17,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final _authService = AuthService();
-  final _localAuth = LocalAuthentication();
 
   bool _loading = false;
   bool _hidePassword = true;
@@ -39,14 +38,6 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      final canCheck = await _localAuth.canCheckBiometrics;
-      if (canCheck) {
-        await _localAuth.authenticate(
-          localizedReason: 'Unlock ClearLedger with biometrics',
-          options: const AuthenticationOptions(biometricOnly: true),
-        );
-      }
-
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -63,94 +54,109 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.64);
+    final brandColor = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFFEAF4F4), Color(0xFFFDF8F0)],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const Text(
-                            'ClearLedger',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Track smarter. Spend wiser.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(color: Colors.black54),
-                          ),
-                          const SizedBox(height: 20),
-                          TextFormField(
-                            controller: _emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(labelText: 'Email'),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) return 'Enter your email';
-                              if (!value.contains('@')) return 'Enter a valid email';
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _passwordController,
-                            obscureText: _hidePassword,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              suffixIcon: IconButton(
-                                onPressed: () => setState(() => _hidePassword = !_hidePassword),
-                                icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
-                              ),
-                            ),
-                            validator: (value) =>
-                                value == null || value.isEmpty ? 'Enter your password' : null,
-                          ),
-                          const SizedBox(height: 18),
-                          ElevatedButton(
-                            onPressed: _loading ? null : _login,
-                            child: _loading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : const Text('Login'),
-                          ),
-                          const SizedBox(height: 8),
-                          TextButton(
-                            onPressed: () {
+      body: DarkShell(
+        padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+        child: ListView(
+          children: [
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                const AppLogoMark(size: 48, glow: true),
+                const SizedBox(width: 14),
+                Text(
+                  'ClearLedger',
+                  style: TextStyle(
+                    color: brandColor,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 94),
+            Text(
+              'Log in',
+              style: TextStyle(
+                color: brandColor,
+                fontSize: 56,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Track smarter. Spend wiser.',
+              style: TextStyle(color: muted, fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 78),
+            FinanceCard(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        prefixIcon: Icon(Icons.mail_outline),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) return 'Enter your email';
+                        if (!value.contains('@')) return 'Enter a valid email';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _hidePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          onPressed: () => setState(() => _hidePassword = !_hidePassword),
+                          icon: Icon(_hidePassword ? Icons.visibility : Icons.visibility_off),
+                        ),
+                      ),
+                      validator: (value) =>
+                          value == null || value.isEmpty ? 'Enter your password' : null,
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: _loading ? null : _login,
+                      child: _loading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Login'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _loading
+                          ? null
+                          : () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(builder: (_) => const RegisterScreen()),
                               );
                             },
-                            child: const Text('No account yet? Register'),
-                          ),
-                        ],
-                      ),
+                      child: const Text('Create account'),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );

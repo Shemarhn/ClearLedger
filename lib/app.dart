@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 
 import 'core/theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/home/home_screen.dart';
+import 'services/app_settings_service.dart';
 import 'services/auth_service.dart';
+import 'services/biometric_lock_service.dart';
 
 class ClearLedgerApp extends StatefulWidget {
   const ClearLedgerApp({super.key});
@@ -15,12 +17,20 @@ class ClearLedgerApp extends StatefulWidget {
 
 class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObserver {
   final AuthService _authService = AuthService();
-  final LocalAuthentication _localAuth = LocalAuthentication();
+  final BiometricLockService _biometricLockService = BiometricLockService.instance;
+  final AppSettingsService _settingsService = AppSettingsService.instance;
+  bool _authenticating = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _settingsService.load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_authService.isLoggedIn) {
+        _authenticateOnResume();
+      }
+    });
   }
 
   @override
@@ -37,16 +47,23 @@ class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObse
   }
 
   Future<void> _authenticateOnResume() async {
+    if (_authenticating || _biometricLockService.isUnlockCoolingDown) {
+      return;
+    }
+
+    _authenticating = true;
     try {
-      final canCheck = await _localAuth.canCheckBiometrics;
-      if (!canCheck) {
+      final enabled = await _biometricLockService.isEnabled();
+      if (!enabled) {
         return;
       }
 
-      final authenticated = await _localAuth.authenticate(
-        localizedReason: 'Unlock ClearLedger',
-        options: const AuthenticationOptions(biometricOnly: true),
-      );
+      final canUseBiometrics = await _biometricLockService.canUseBiometrics();
+      if (!canUseBiometrics) {
+        return;
+      }
+
+      final authenticated = await _biometricLockService.authenticate();
 
       if (!authenticated && mounted) {
         await _authService.signOut();
@@ -54,23 +71,33 @@ class _ClearLedgerAppState extends State<ClearLedgerApp> with WidgetsBindingObse
       }
     } catch (_) {
       // Keep UX resilient if biometric APIs are unavailable.
+    } finally {
+      _authenticating = false;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'ClearLedger',
-      theme: AppTheme.lightTheme,
-      home: StreamBuilder(
-        stream: _authService.authStateChanges,
-        builder: (context, snapshot) {
-          if (_authService.isLoggedIn) {
-            return const HomeScreen();
-          }
-          return const LoginScreen();
-        },
+    return DynamicColorBuilder(
+      builder: (lightDynamic, darkDynamic) => AnimatedBuilder(
+        animation: _settingsService,
+        builder: (context, _) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'ClearLedger',
+          theme: AppTheme.lightThemeFor(lightDynamic),
+          darkTheme: AppTheme.darkThemeFor(darkDynamic),
+          themeMode: _settingsService.themeMode,
+          home: StreamBuilder(
+            stream: _authService.authStateChanges,
+            builder: (context, snapshot) {
+              if (_authService.isLoggedIn) {
+                _settingsService.load();
+                return const HomeScreen();
+              }
+              return const LoginScreen();
+            },
+          ),
+        ),
       ),
     );
   }

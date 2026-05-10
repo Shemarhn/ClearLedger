@@ -71,10 +71,17 @@ def generate_pdf(
     )
 
     # Summary section
-    total_amount = sum(float(t.get("amount", 0)) for t in transactions)
+    total_amount = sum(
+        float(t.get("amount", 0))
+        for t in transactions
+        if (t.get("transaction_type") or "expense") == "expense"
+    )
     category_totals: dict[str, float] = {}
+    report_currency = _report_currency(transactions)
     for t in transactions:
         cat = t.get("category", "Other")
+        if (t.get("transaction_type") or "expense") != "expense":
+            continue
         category_totals[cat] = category_totals.get(cat, 0) + float(t.get("amount", 0))
 
     summary_style = ParagraphStyle(
@@ -84,7 +91,9 @@ def generate_pdf(
         spaceAfter=4,
     )
     elements.append(Paragraph(f"<b>Total Transactions:</b> {len(transactions)}", summary_style))
-    elements.append(Paragraph(f"<b>Total Spent:</b> JMD {total_amount:,.2f}", summary_style))
+    elements.append(
+        Paragraph(f"<b>Total Spent:</b> {report_currency} {total_amount:,.2f}", summary_style)
+    )
     elements.append(Spacer(1, 12))
 
     # Category breakdown
@@ -92,7 +101,7 @@ def generate_pdf(
     elements.append(Spacer(1, 6))
 
     if category_totals:
-        cat_data = [["Category", "Amount (JMD)", "% of Total"]]
+        cat_data = [["Category", f"Amount ({report_currency})", "% of Total"]]
         sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
         for cat, amount in sorted_cats:
             pct = (amount / total_amount * 100) if total_amount > 0 else 0
@@ -124,11 +133,12 @@ def generate_pdf(
     elements.append(Spacer(1, 6))
 
     if transactions:
-        table_data = [["Date", "Merchant", "Category", "Amount (JMD)", "Source"]]
+        table_data = [["Date", "Type", "Merchant", "Category", f"Amount ({report_currency})", "Source"]]
         for t in transactions:
             table_data.append(
                 [
                     t.get("transaction_date", "N/A"),
+                    t.get("transaction_type", "expense"),
                     t.get("merchant", "Unknown")[:30],
                     t.get("category", "Other"),
                     f"{float(t.get('amount', 0)):,.2f}",
@@ -138,7 +148,7 @@ def generate_pdf(
 
         tx_table = Table(
             table_data,
-            colWidths=[1.2 * inch, 2 * inch, 1.2 * inch, 1.3 * inch, 0.8 * inch],
+            colWidths=[1.0 * inch, 0.9 * inch, 1.5 * inch, 1.1 * inch, 1.2 * inch, 0.8 * inch],
         )
         tx_table.setStyle(
             TableStyle(
@@ -181,9 +191,12 @@ def generate_csv(transactions: list[dict[str, Any]]) -> str:
             "Date",
             "Merchant",
             "Category",
+            "Type",
             "Description",
             "Amount",
             "Currency",
+            "Card Last 4",
+            "Fee Amount",
             "Input Method",
         ]
     )
@@ -194,11 +207,22 @@ def generate_csv(transactions: list[dict[str, Any]]) -> str:
                 t.get("transaction_date", ""),
                 t.get("merchant", ""),
                 t.get("category", ""),
+                t.get("transaction_type", "expense"),
                 t.get("description", ""),
                 t.get("amount", 0),
-                "JMD",
+                t.get("currency", "JMD"),
+                t.get("card_last4", ""),
+                t.get("fee_amount", ""),
                 t.get("input_method", ""),
             ]
         )
 
     return output.getvalue()
+
+
+def _report_currency(transactions: list[dict[str, Any]]) -> str:
+    for transaction in transactions:
+        currency = str(transaction.get("currency") or "").strip().upper()
+        if currency:
+            return currency
+    return "JMD"

@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import '../models/daily_overview.dart';
 import '../models/parsed_transaction.dart';
 import '../core/constants.dart';
 import '../core/supabase_client.dart';
@@ -12,6 +13,8 @@ class ApiException implements Exception {
 }
 
 class ApiService {
+  static const _receiptParseTimeout = Duration(seconds: 120);
+
   final Dio _dio;
 
   ApiService()
@@ -26,13 +29,17 @@ class ApiService {
     return session?.accessToken;
   }
 
-  Future<ParsedTransaction> processReceiptImage(File image) async {
+  Future<ParsedTransaction> processReceiptImage(
+    File image, {
+    required String ocrText,
+  }) async {
     final token = await _getToken();
     if (token == null) throw ApiException("Not authenticated");
 
     final formData = FormData.fromMap({
       'file': await MultipartFile.fromFile(image.path,
-          filename: image.path.split('/').last),
+          filename: image.path.split(Platform.pathSeparator).last),
+      'ocr_text': ocrText,
     });
 
     try {
@@ -41,12 +48,15 @@ class ApiService {
         data: formData,
         options: Options(
           headers: {'Authorization': 'Bearer $token'},
+          sendTimeout: _receiptParseTimeout,
+          receiveTimeout: _receiptParseTimeout,
         ),
       );
 
       if (response.data['success'] == true) {
         final data = Map<String, dynamic>.from(response.data['data'] as Map);
         data['receipt_url'] = response.data['receipt_url'];
+        data['receipt_path'] = response.data['receipt_path'];
         data['raw_llm_response'] = response.data['raw_llm_response'];
         return ParsedTransaction.fromJson(data);
       } else {
@@ -85,6 +95,32 @@ class ApiService {
       if (e.response != null && e.response?.data != null) {
         final detail = e.response?.data['detail'];
         throw ApiException(detail?.toString() ?? "Server error processing text");
+      }
+      throw ApiException("Network error: ${e.message}");
+    }
+  }
+
+  Future<DailyOverview> generateDailyOverview() async {
+    final token = await _getToken();
+    if (token == null) throw ApiException("Not authenticated");
+
+    try {
+      final response = await _dio.post(
+        '/overview/daily',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          receiveTimeout: _receiptParseTimeout,
+        ),
+      );
+
+      if (response.data['success'] == true) {
+        return DailyOverview.fromJson(Map<String, dynamic>.from(response.data as Map));
+      }
+      throw ApiException("Failed to generate overview");
+    } on DioException catch (e) {
+      if (e.response != null && e.response?.data != null) {
+        final detail = e.response?.data['detail'];
+        throw ApiException(detail?.toString() ?? "Server error generating overview");
       }
       throw ApiException("Network error: ${e.message}");
     }

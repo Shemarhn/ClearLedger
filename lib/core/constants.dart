@@ -6,8 +6,10 @@ class AppConstants {
 
   static const String supabaseUrl = String.fromEnvironment('SUPABASE_URL',
       defaultValue: 'YOUR_SUPABASE_URL');
-  static const String supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY',
-      defaultValue: 'YOUR_SUPABASE_ANON_KEY');
+  static const String supabasePublishableKey = String.fromEnvironment(
+    'SUPABASE_PUBLISHABLE_KEY',
+    defaultValue: 'YOUR_SUPABASE_PUBLISHABLE_KEY',
+  );
 
   // Categories match the backend schema
   static const List<String> categories = [
@@ -33,21 +35,34 @@ class AppConstants {
   };
 
   static const Map<String, Color> categoryColors = {
-    'Food': Color(0xFFE76F51),
-    'Transport': Color(0xFF457B9D),
-    'Utilities': Color(0xFFF4A261),
-    'Entertainment': Color(0xFF2A9D8F),
-    'Healthcare': Color(0xFFE63946),
-    'Shopping': Color(0xFFB56576),
-    'Education': Color(0xFF6A994E),
-    'Other': Color(0xFF6C757D),
+    'Food': Color(0xFFFF9E7A),
+    'Transport': Color(0xFF7CC7D7),
+    'Utilities': Color(0xFFFFC857),
+    'Entertainment': Color(0xFFA78BFA),
+    'Healthcare': Color(0xFFFF7D8F),
+    'Shopping': Color(0xFFFFB4D8),
+    'Education': Color(0xFF8BE28B),
+    'Other': Color(0xFFB9B3AA),
   };
 
-  static const Color primaryColor = Color(0xFF073B4C);
-  static const Color accentColor = Color(0xFF118AB2);
-  static const Color background = Color(0xFFF4F7F5);
-  static const Color surface = Colors.white;
-  static const Color errorRed = Color(0xFFE63946);
-  static const Color successGreen = Color(0xFF2A9D8F);
-  static const Color warningAmber = Color(0xFFF4A261);
+  static const Color dynamicSeed = Color(0xFF006D75);
+  static const Color primaryColor = Color(0xFF1B1B1F);
+  static const Color accentColor = Color(0xFF006D75);
+  static const Color background = Color(0xFFFCFBFF);
+  static const Color surface = Color(0xFFFFFBFE);
+  static const Color surfaceHigh = Color(0xFFECEEF6);
+  static const Color lightStroke = Color(0xFFDDE2EA);
+  static const Color darkBackground = Color(0xFF111318);
+  static const Color darkSurface = Color(0xFF1B1B20);
+  static const Color darkSurfaceHigh = Color(0xFF252A32);
+  static const Color darkStroke = Color(0xFF3F4652);
+  static const Color darkText = Color(0xFFE5E2E9);
+  static const Color darkMuted = Color(0xFFC7C5D0);
+  static const Color champagne = Color(0xFFFFD39B);
+  static const Color champagneHigh = Color(0xFFFFE0B6);
+  static const Color champagneMuted = Color(0xFFD3B285);
+  static const Color mint = champagne;
+  static const Color errorRed = Color(0xFFFF8B8B);
+  static const Color successGreen = Color(0xFF6EE7A0);
+  static const Color warningAmber = Color(0xFFFFC857);
 }

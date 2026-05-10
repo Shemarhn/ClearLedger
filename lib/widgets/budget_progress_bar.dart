@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../core/constants.dart';
 import '../models/budget.dart';
+import '../services/app_settings_service.dart';
+import 'dark_shell.dart';
 
 class BudgetProgressBar extends StatelessWidget {
-  const BudgetProgressBar({super.key, required this.budget});
+  const BudgetProgressBar({
+    super.key,
+    required this.budget,
+    this.onTap,
+  });
 
   final BudgetModel budget;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -15,43 +22,68 @@ class BudgetProgressBar extends StatelessWidget {
     final color = percent > 1
         ? AppConstants.errorRed
         : AppConstants.categoryColors[budget.category] ?? AppConstants.accentColor;
+    final currency = AppSettingsService.instance.preferredCurrency;
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final muted = onSurface.withValues(alpha: 0.62);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: FinanceCard(
+        padding: EdgeInsets.zero,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(26),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  budget.category,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        budget.category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '$currency ${budget.spent.toStringAsFixed(2)} / ${budget.monthlyLimit.toStringAsFixed(2)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          color: percent > 1 ? AppConstants.errorRed : onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                const SizedBox(height: 10),
+                LinearProgressIndicator(
+                  value: clamped,
+                  minHeight: 10,
+                  borderRadius: BorderRadius.circular(12),
+                  valueColor: AlwaysStoppedAnimation<Color>(color),
+                  backgroundColor: dark
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : AppConstants.surfaceHigh,
+                ),
+                const SizedBox(height: 8),
                 Text(
-                  'JMD ${budget.spent.toStringAsFixed(2)} / ${budget.monthlyLimit.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: percent > 1 ? AppConstants.errorRed : Colors.black87,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  '${(percent * 100).toStringAsFixed(1)}% used',
+                  style: TextStyle(color: muted, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: clamped,
-              minHeight: 10,
-              borderRadius: BorderRadius.circular(12),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              backgroundColor: Colors.grey.shade200,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${(percent * 100).toStringAsFixed(1)}% used',
-              style: const TextStyle(color: Colors.black54),
-            ),
-          ],
+          ),
         ),
       ),
     );

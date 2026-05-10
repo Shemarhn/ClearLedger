@@ -17,13 +17,16 @@ class CategoryChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = AppConstants.categoryColors[category] ?? Colors.grey;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return ChoiceChip(
       label: Text(category),
       selected: selected,
       avatar: Icon(AppConstants.categoryIcons[category], size: 16),
       selectedColor: color.withValues(alpha: 0.2),
       onSelected: (_) => onTap?.call(),
-      side: BorderSide(color: selected ? color : Colors.grey.shade300),
+      side: BorderSide(
+        color: selected ? color : (dark ? AppConstants.darkStroke : AppConstants.lightStroke),
+      ),
     );
   }
 }

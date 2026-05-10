@@ -4,9 +4,10 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import get_cors_origins, validate_required_config
+from config import allow_cors_credentials, get_cors_origins, validate_required_config
 from routes.parse import router as parse_router
 from routes.export import router as export_router
+from routes.overview import router as overview_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,7 +24,7 @@ validate_required_config()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
-    allow_credentials=True,
+    allow_credentials=allow_cors_credentials(),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -31,6 +32,7 @@ app.add_middleware(
 # Register routers
 app.include_router(parse_router)
 app.include_router(export_router)
+app.include_router(overview_router)
 
 
 @app.get("/health")

@@ -5,11 +5,11 @@ class SupabaseHelper {
   static Future<void> initialize() async {
     await Supabase.initialize(
       url: AppConstants.supabaseUrl,
-      anonKey: AppConstants.supabaseAnonKey,
+      anonKey: AppConstants.supabasePublishableKey,
     );
   }
 
   static SupabaseClient get client => Supabase.instance.client;
 }
 
-final supabase = SupabaseHelper.client;
+SupabaseClient get supabase => SupabaseHelper.client;

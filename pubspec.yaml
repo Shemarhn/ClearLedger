@@ -4,53 +4,48 @@ publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.10.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   
-  # Core state & routing
-  flutter_riverpod: ^2.4.9
-  go_router: ^13.1.0
-  
   # Backend & Network
-  supabase_flutter: ^2.4.0
-  dio: ^5.4.1
+  supabase_flutter: ^2.12.4
+  dio: ^5.9.2
   
   # UI & Charts
-  fl_chart: ^0.66.0
-  google_fonts: ^6.1.0
-  intl: ^0.19.0
+  fl_chart: ^1.2.0
+  google_fonts: ^8.1.0
+  intl: ^0.20.2
+  dynamic_color: ^1.7.0
   
   # Hardware & Files
-  image_picker: ^1.0.7
-  camera: ^0.10.5+8
-  path_provider: ^2.1.2
-  permission_handler: ^11.3.0
+  image_picker: ^1.2.2
+  camera: ^0.12.0+1
+  google_mlkit_text_recognition: ^0.15.1
+  path_provider: ^2.1.5
+  permission_handler: ^12.0.1
   
   # Auth & Security
-  flutter_secure_storage: ^9.0.0
-  local_auth: ^2.1.8
-  shared_preferences: ^2.2.2
+  flutter_secure_storage: ^10.0.0
+  local_auth: ^3.0.1
+  shared_preferences: ^2.5.5
   
   # Notifications
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.7.10
-  flutter_local_notifications: ^16.3.1
+  firebase_core: ^4.7.0
+  firebase_messaging: ^16.2.0
+  flutter_local_notifications: ^21.0.0
   
   # Export tools
-  pdf: ^3.10.8
-  csv: ^6.0.0
-  share_plus: ^7.2.1
-  open_filex: ^4.3.4
+  open_filex: ^4.7.0
   
-  cupertino_icons: ^1.0.6
+  cupertino_icons: ^1.0.9
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
