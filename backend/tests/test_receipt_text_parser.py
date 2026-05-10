@@ -28,6 +28,34 @@ Dymo Labelling Tape        2500.00
 CARD ****1234
 """
 
+AMAZON_ORDER_RECEIPT = """
+Search or ask a question
+Hicarer 9 Pieces Spiked Studded Bracelet
+Sold by: XunstoreYang
+Return or replace items: Eligible through June 5, 2026
+$15.99
+View your item
+Get product support
+Buy it again
+Track package
+Order summary
+Order placed May 4, 2026
+Order # 113-4410901-3057839
+Item(s) Subtotal: JMD 2,504.19
+Shipping & Handling: JMD 0.00
+Total before tax: JMD 2,504.19
+Estimated tax to be collected: JMD 0.00
+Exchange rate guarantee fee: JMD 50.09
+Grand Total: JMD 2,554.28
+Exchange rate
+1 USD = 156.6099669 JMD
+View invoice
+Payment method
+Mastercard ending in 0304
+Ship to
+Shemar Marks
+"""
+
 
 class ReceiptTextParserTests(unittest.TestCase):
     def test_extracts_receipt_candidates_from_ocr_text(self):
@@ -81,6 +109,23 @@ class ReceiptTextParserTests(unittest.TestCase):
 
         self.assertEqual(result["amount"], 1380.0)
         self.assertLessEqual(result["confidence"], 0.65)
+
+    def test_amazon_order_ignores_app_chrome_and_exchange_rate_metadata(self):
+        candidates = extract_receipt_candidates(AMAZON_ORDER_RECEIPT)
+        best_guess = candidates["best_guess"]
+
+        self.assertEqual(best_guess["merchant"], "Amazon")
+        self.assertEqual(best_guess["amount"], 2554.28)
+        self.assertEqual(best_guess["currency"], "JMD")
+        self.assertEqual(best_guess["date"], "2026-05-04")
+        self.assertEqual(best_guess["transaction_type"], "expense")
+        self.assertEqual(best_guess["category"], "Shopping")
+        self.assertEqual(best_guess["card_last4"], "0304")
+
+        item_names = [item["name"] for item in best_guess["line_items"]]
+        self.assertNotIn("Return or replace items: Eligible through June", item_names)
+        self.assertFalse(any("Order #" in item["line"] for item in best_guess["line_items"]))
+        self.assertFalse(any("USD = 156" in item["line"] for item in best_guess["line_items"]))
 
     def test_prepare_receipt_ocr_text_preserves_lines(self):
         prepared = prepare_receipt_ocr_text("  A  \r\n\r\n  B   C  ")

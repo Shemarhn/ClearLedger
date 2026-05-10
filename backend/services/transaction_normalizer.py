@@ -40,6 +40,10 @@ def normalize_parsed_transaction(result: Mapping[str, Any], include_line_items: 
         "confidence": _coerce_confidence(result.get("confidence")),
         "account_hint": _clean_string(result.get("account_hint")),
         "destination_account_hint": _clean_string(result.get("destination_account_hint")),
+        "suggested_account_id": _clean_string(result.get("suggested_account_id")),
+        "suggested_destination_account_id": _clean_string(
+            result.get("suggested_destination_account_id")
+        ),
         "card_last4": _coerce_card_last4(result.get("card_last4")),
         "fee_amount": _coerce_float(result.get("fee_amount")),
     }
@@ -59,6 +63,8 @@ def sanitized_llm_payload(normalized: Mapping[str, Any]) -> dict:
         "confidence": normalized.get("confidence"),
         "account_hint": normalized.get("account_hint"),
         "destination_account_hint": normalized.get("destination_account_hint"),
+        "suggested_account_id": normalized.get("suggested_account_id"),
+        "suggested_destination_account_id": normalized.get("suggested_destination_account_id"),
         "card_last4": normalized.get("card_last4"),
         "fee_amount": normalized.get("fee_amount"),
     }

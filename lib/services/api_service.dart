@@ -57,6 +57,7 @@ class ApiService {
         final data = Map<String, dynamic>.from(response.data['data'] as Map);
         data['receipt_url'] = response.data['receipt_url'];
         data['receipt_path'] = response.data['receipt_path'];
+        data['parse_session_id'] = response.data['parse_session_id'];
         data['raw_llm_response'] = response.data['raw_llm_response'];
         return ParsedTransaction.fromJson(data);
       } else {
@@ -123,6 +124,38 @@ class ApiService {
         throw ApiException(detail?.toString() ?? "Server error generating overview");
       }
       throw ApiException("Network error: ${e.message}");
+    }
+  }
+
+  Future<void> recordReceiptFeedback({
+    required String? parseSessionId,
+    required String outcome,
+    String? finalTransactionId,
+    Map<String, dynamic>? finalPayload,
+    String? cancelReason,
+  }) async {
+    final token = await _getToken();
+    if (token == null) return;
+    if (parseSessionId == null && finalPayload == null && cancelReason == null) return;
+
+    try {
+      await _dio.post(
+        '/receipt-feedback',
+        data: {
+          'parse_session_id': parseSessionId,
+          'outcome': outcome,
+          'final_transaction_id': finalTransactionId,
+          'final_payload': finalPayload,
+          'cancel_reason': cancelReason,
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          receiveTimeout: const Duration(seconds: 10),
+          sendTimeout: const Duration(seconds: 10),
+        ),
+      );
+    } catch (_) {
+      // Feedback should improve future scans, but it must never block saving.
     }
   }
 

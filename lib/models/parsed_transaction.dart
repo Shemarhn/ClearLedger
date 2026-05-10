@@ -29,10 +29,13 @@ class ParsedTransaction {
   final double confidence;
   final String? accountHint;
   final String? destinationAccountHint;
+  final String? suggestedAccountId;
+  final String? suggestedDestinationAccountId;
   final String? cardLast4;
   final double? feeAmount;
   final String? receiptUrl;
   final String? receiptPath;
+  final String? parseSessionId;
   final Map<String, dynamic>? rawLlmResponse;
 
   ParsedTransaction({
@@ -47,10 +50,13 @@ class ParsedTransaction {
     this.confidence = 0.0,
     this.accountHint,
     this.destinationAccountHint,
+    this.suggestedAccountId,
+    this.suggestedDestinationAccountId,
     this.cardLast4,
     this.feeAmount,
     this.receiptUrl,
     this.receiptPath,
+    this.parseSessionId,
     this.rawLlmResponse,
   });
 
@@ -72,10 +78,13 @@ class ParsedTransaction {
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
       accountHint: json['account_hint'] as String?,
       destinationAccountHint: json['destination_account_hint'] as String?,
+      suggestedAccountId: json['suggested_account_id'] as String?,
+      suggestedDestinationAccountId: json['suggested_destination_account_id'] as String?,
       cardLast4: json['card_last4'] as String?,
       feeAmount: (json['fee_amount'] as num?)?.toDouble(),
       receiptUrl: json['receipt_url'] as String?,
       receiptPath: json['receipt_path'] as String?,
+      parseSessionId: json['parse_session_id'] as String?,
       rawLlmResponse: json['raw_llm_response'] as Map<String, dynamic>?,
     );
   }
@@ -92,10 +101,13 @@ class ParsedTransaction {
     'confidence': confidence,
     'account_hint': accountHint,
     'destination_account_hint': destinationAccountHint,
+    'suggested_account_id': suggestedAccountId,
+    'suggested_destination_account_id': suggestedDestinationAccountId,
     'card_last4': cardLast4,
     'fee_amount': feeAmount,
     'receipt_url': receiptUrl,
     'receipt_path': receiptPath,
+    'parse_session_id': parseSessionId,
     'raw_llm_response': rawLlmResponse,
   };
 
@@ -111,10 +123,13 @@ class ParsedTransaction {
     double? confidence,
     String? accountHint,
     String? destinationAccountHint,
+    String? suggestedAccountId,
+    String? suggestedDestinationAccountId,
     String? cardLast4,
     double? feeAmount,
     String? receiptUrl,
     String? receiptPath,
+    String? parseSessionId,
     Map<String, dynamic>? rawLlmResponse,
   }) {
     return ParsedTransaction(
@@ -129,10 +144,14 @@ class ParsedTransaction {
       confidence: confidence ?? this.confidence,
       accountHint: accountHint ?? this.accountHint,
       destinationAccountHint: destinationAccountHint ?? this.destinationAccountHint,
+      suggestedAccountId: suggestedAccountId ?? this.suggestedAccountId,
+      suggestedDestinationAccountId:
+          suggestedDestinationAccountId ?? this.suggestedDestinationAccountId,
       cardLast4: cardLast4 ?? this.cardLast4,
       feeAmount: feeAmount ?? this.feeAmount,
       receiptUrl: receiptUrl ?? this.receiptUrl,
       receiptPath: receiptPath ?? this.receiptPath,
+      parseSessionId: parseSessionId ?? this.parseSessionId,
       rawLlmResponse: rawLlmResponse ?? this.rawLlmResponse,
     );
   }

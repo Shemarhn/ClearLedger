@@ -29,6 +29,8 @@ TOTAL_KEYWORDS = (
 NON_FINAL_AMOUNT_KEYWORDS = (
     "subtotal",
     "sub total",
+    "item(s) subtotal",
+    "total before tax",
     "tax",
     "gct",
     "vat",
@@ -40,6 +42,10 @@ NON_FINAL_AMOUNT_KEYWORDS = (
     "points",
     "cashback",
     "balance forward",
+    "shipping",
+    "handling",
+    "exchange rate",
+    "guarantee fee",
 )
 MERCHANT_SKIP_KEYWORDS = (
     "receipt",
@@ -62,6 +68,50 @@ MERCHANT_SKIP_KEYWORDS = (
     "email",
     "www",
     "http",
+    "search or ask",
+    "product support",
+    "buy it again",
+    "track package",
+    "return or replace",
+    "product question",
+    "product review",
+    "view your item",
+    "view invoice",
+    "view related",
+    "order summary",
+    "order placed",
+    "order #",
+    "payment method",
+    "ship to",
+    "exchange rate",
+)
+
+RECEIPT_CHROME_KEYWORDS = (
+    "search or ask",
+    "product support",
+    "buy it again",
+    "track package",
+    "return or replace",
+    "ask product question",
+    "product question",
+    "write a product review",
+    "product review",
+    "view your item",
+    "view invoice",
+    "view related transactions",
+)
+
+METADATA_AMOUNT_KEYWORDS = (
+    "order #",
+    "order number",
+    "order placed",
+    "payment method",
+    "mastercard ending",
+    "visa ending",
+    "card ending",
+    "ship to",
+    "sold by",
+    "exchange rate",
 )
 
 CATEGORY_MERCHANT_KEYWORDS = {
@@ -124,6 +174,9 @@ CATEGORY_MERCHANT_KEYWORDS = {
         "health",
     ),
     "Shopping": (
+        "amazon",
+        "order summary",
+        "sold by",
         "store",
         "shop",
         "mall",
@@ -187,6 +240,9 @@ def extract_receipt_candidates(ocr_text: str) -> dict[str, Any]:
 
     best_amount = _best_receipt_amount(amount_candidates, line_item_candidates)
     best_merchant = merchant_candidates[0].value if merchant_candidates else None
+    marketplace_merchant = _marketplace_merchant(full_text)
+    if marketplace_merchant:
+        best_merchant = marketplace_merchant
     best_date = date_candidates[0].value if date_candidates else None
 
     return {
@@ -367,6 +423,14 @@ def _amount_candidates(lines: list[str]) -> list[AmountCandidate]:
 
     for index, line in enumerate(lines):
         lowered = line.lower()
+        has_total_keyword = any(keyword in lowered for keyword in TOTAL_KEYWORDS)
+        if _is_receipt_chrome_line(line):
+            continue
+        if _is_metadata_amount_line(line) and not has_total_keyword:
+            continue
+        if _date_strings(line) and not has_total_keyword:
+            continue
+
         amounts = _extract_amounts(line)
         if not amounts:
             continue
@@ -438,13 +502,15 @@ def _merchant_candidates(lines: list[str]) -> list[TextCandidate]:
 def _date_candidates(lines: list[str]) -> list[TextCandidate]:
     candidates: list[TextCandidate] = []
     for index, line in enumerate(lines):
+        if _is_receipt_chrome_line(line):
+            continue
         for raw_date in _date_strings(line):
             parsed = _parse_date_string(raw_date)
             if not parsed:
                 continue
 
             score = 5.0
-            if any(keyword in line.lower() for keyword in ("date", "trans", "purchase")):
+            if any(keyword in line.lower() for keyword in ("date", "trans", "purchase", "order placed")):
                 score += 1
             candidates.append(
                 TextCandidate(
@@ -462,6 +528,8 @@ def _line_item_candidates(lines: list[str]) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     for index, line in enumerate(lines):
         lowered = line.lower()
+        if _is_receipt_chrome_line(line) or _is_metadata_amount_line(line):
+            continue
         if any(keyword in lowered for keyword in TOTAL_KEYWORDS + NON_FINAL_AMOUNT_KEYWORDS):
             continue
         if any(
@@ -505,6 +573,10 @@ def _best_receipt_amount(
     if not amount_candidates:
         return line_total
 
+    final_totals = [candidate for candidate in amount_candidates if candidate.label == "final_total"]
+    if final_totals:
+        return final_totals[0].amount
+
     best = amount_candidates[0]
     if best.label in {"total", "final_total"}:
         return best.amount
@@ -543,6 +615,8 @@ def _merchant_line(line: str) -> str | None:
     lowered = line.lower()
     if len(line) < 2 or len(line) > 70:
         return None
+    if _is_receipt_chrome_line(line):
+        return None
     if any(keyword in lowered for keyword in MERCHANT_SKIP_KEYWORDS):
         return None
     if _extract_amounts(line) or _date_strings(line):
@@ -554,6 +628,32 @@ def _merchant_line(line: str) -> str | None:
     if _line_has_noise(line):
         return None
     return line.strip(" -")
+
+
+def _is_receipt_chrome_line(line: str) -> bool:
+    lowered = line.lower()
+    return any(keyword in lowered for keyword in RECEIPT_CHROME_KEYWORDS)
+
+
+def _is_metadata_amount_line(line: str) -> bool:
+    lowered = line.lower()
+    if any(keyword in lowered for keyword in METADATA_AMOUNT_KEYWORDS):
+        return True
+    return bool(re.search(r"\b\d+(?:\.\d+)?\s*(?:usd|jmd)\s*=", lowered))
+
+
+def _marketplace_merchant(text: str) -> str | None:
+    lowered = text.lower()
+    if "amazon" in lowered:
+        return "Amazon"
+    amazon_order_signals = (
+        "order summary" in lowered
+        and "payment method" in lowered
+        and ("return or replace items" in lowered or "buy it again" in lowered)
+    )
+    if amazon_order_signals:
+        return "Amazon"
+    return None
 
 
 def _line_has_noise(line: str) -> bool:
@@ -640,10 +740,45 @@ def _parse_date_string(raw_date: str) -> date | None:
 
 
 def _detect_currency(text: str) -> str:
+    lines = _receipt_lines(text)
+    total_currency = _currency_from_total_lines(lines)
+    if total_currency:
+        return total_currency
+
     lowered = text.lower()
+    if "jmd" in lowered or "ja$" in lowered:
+        return "JMD"
     if "usd" in lowered or "us$" in lowered:
         return "USD"
     return "JMD"
+
+
+def _currency_from_total_lines(lines: list[str]) -> str | None:
+    currency_by_priority: list[str] = []
+    for line in lines:
+        lowered = line.lower()
+        if _is_metadata_amount_line(line) and "grand total" not in lowered:
+            continue
+        if not any(keyword in lowered for keyword in TOTAL_KEYWORDS):
+            continue
+
+        currencies = _currencies_in_line(line)
+        if not currencies:
+            continue
+        if "grand total" in lowered or "amount due" in lowered or "balance due" in lowered:
+            return currencies[-1]
+        if not any(keyword in lowered for keyword in NON_FINAL_AMOUNT_KEYWORDS):
+            currency_by_priority.append(currencies[-1])
+
+    return currency_by_priority[-1] if currency_by_priority else None
+
+
+def _currencies_in_line(line: str) -> list[str]:
+    currencies: list[str] = []
+    for match in re.finditer(r"\bJMD\b|JA\$|\bUSD\b|US\$|\$", line, flags=re.IGNORECASE):
+        token = match.group(0).upper()
+        currencies.append("JMD" if token in {"JMD", "JA$"} else "USD")
+    return currencies
 
 
 def _detect_transaction_type(text: str) -> str:
@@ -652,7 +787,7 @@ def _detect_transaction_type(text: str) -> str:
         return "withdrawal"
     if any(keyword in lowered for keyword in ("deposit", "cash deposit", "atm dep")):
         return "deposit"
-    if any(keyword in lowered for keyword in ("refund", "reversal", "return")):
+    if any(keyword in lowered for keyword in ("refund", "reversal", "credited back", "credit memo")):
         return "refund"
     if any(keyword in lowered for keyword in ("salary", "payroll", "income")):
         return "income"

@@ -10,7 +10,14 @@ from supabase import create_client
 
 from auth import get_user_id
 from config import SUPABASE_SECRET_KEY, SUPABASE_URL
-from models import ParseReceiptResponse, ParseTextResponse, ParsedTransaction, TextInput
+from models import (
+    ParseReceiptResponse,
+    ParseTextResponse,
+    ParsedTransaction,
+    ReceiptFeedbackInput,
+    ReceiptFeedbackResponse,
+    TextInput,
+)
 from services.gemma_service import parse_receipt_text, parse_text_description
 from services.claude_service import (
     parse_receipt_text_fallback,
@@ -27,6 +34,11 @@ from services.receipt_text_parser import (
     parse_receipt_text_basic,
     prepare_receipt_ocr_text,
     reconcile_receipt_result,
+)
+from services.receipt_intelligence import (
+    apply_receipt_memory,
+    record_feedback,
+    record_parse_event,
 )
 from services.text_fallback_service import parse_text_description_basic
 from services.transaction_normalizer import normalize_parsed_transaction, sanitized_llm_payload
@@ -121,15 +133,28 @@ async def _parse_receipt_impl(
             result = parse_receipt_text_basic(prepared_ocr_text, candidates)
 
     result = reconcile_receipt_result(result, candidates)
+    result = apply_receipt_memory(_get_supabase(), user_id, result)
 
     normalized = normalize_parsed_transaction(result, include_line_items=True)
     parsed = ParsedTransaction(**normalized)
+    parse_session_id = record_parse_event(
+        _get_supabase(),
+        user_id=user_id,
+        input_method="receipt",
+        ocr_text=prepared_ocr_text,
+        receipt_url=receipt_url,
+        receipt_path=receipt_path,
+        parser_candidates=candidates,
+        parsed_payload=normalized,
+        raw_llm_response=sanitized_llm_payload(normalized),
+    )
 
     return ParseReceiptResponse(
         success=True,
         data=parsed,
         receipt_url=receipt_url,
         receipt_path=receipt_path,
+        parse_session_id=parse_session_id,
         raw_llm_response=sanitized_llm_payload(normalized),
     )
 
@@ -200,6 +225,31 @@ async def parse_text(body: TextInput, user_id: str = Depends(get_user_id)):
 @router.post("/parse/text", response_model=ParseTextResponse)
 async def parse_text_alias(body: TextInput, user_id: str = Depends(get_user_id)):
     return await _parse_text_impl(body=body, user_id=user_id)
+
+
+@router.post("/receipt-feedback", response_model=ReceiptFeedbackResponse)
+async def receipt_feedback(
+    body: ReceiptFeedbackInput,
+    user_id: str = Depends(get_user_id),
+):
+    result = record_feedback(
+        _get_supabase(),
+        user_id=user_id,
+        parse_session_id=body.parse_session_id,
+        outcome=body.outcome,
+        final_transaction_id=body.final_transaction_id,
+        final_payload=body.final_payload,
+        cancel_reason=body.cancel_reason,
+    )
+    return ReceiptFeedbackResponse(**result)
+
+
+@router.post("/parse/receipt-feedback", response_model=ReceiptFeedbackResponse)
+async def receipt_feedback_alias(
+    body: ReceiptFeedbackInput,
+    user_id: str = Depends(get_user_id),
+):
+    return await receipt_feedback(body=body, user_id=user_id)
 
 
 def _declared_image_mime(file: UploadFile) -> str:

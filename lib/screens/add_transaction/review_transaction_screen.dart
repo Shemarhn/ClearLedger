@@ -6,6 +6,7 @@ import '../../models/parsed_transaction.dart';
 import '../../models/transaction.dart';
 import '../../services/account_service.dart';
 import '../../services/app_settings_service.dart';
+import '../../services/api_service.dart';
 import '../../services/budget_alert_service.dart';
 import '../../services/budget_service.dart';
 import '../../services/exchange_rate_service.dart';
@@ -31,6 +32,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   final _transactionService = TransactionService();
   final _budgetService = BudgetService();
   final _accountService = AccountService();
+  final _apiService = ApiService();
   final _settingsService = AppSettingsService.instance;
   final _exchangeRateService = ExchangeRateService();
 
@@ -57,6 +59,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   bool _converting = false;
   bool _linkingDetectedCard = false;
   bool _creatingDetectedAccount = false;
+  bool _feedbackRecorded = false;
 
   @override
   void initState() {
@@ -141,14 +144,21 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     final cash = _cashAccount() ?? (_accounts.isEmpty ? null : _accounts.first);
     final detected = _detectedAccount;
     final hasCard = widget.parsed.cardLast4 != null;
+    if (_accountId == null && _hasAccount(widget.parsed.suggestedAccountId)) {
+      _accountId = widget.parsed.suggestedAccountId;
+    }
+    if (_destinationAccountId == null &&
+        _hasAccount(widget.parsed.suggestedDestinationAccountId)) {
+      _destinationAccountId = widget.parsed.suggestedDestinationAccountId;
+    }
 
     switch (_transactionType) {
       case TransactionType.withdrawal:
         _accountId = detected?.id ?? _accountId;
-        _destinationAccountId = cash?.id;
+        _destinationAccountId ??= cash?.id;
         break;
       case TransactionType.deposit:
-        _accountId = cash?.id ?? _accountId;
+        _accountId ??= cash?.id;
         _destinationAccountId = detected?.id ?? _destinationAccountId;
         break;
       case TransactionType.transfer:
@@ -159,9 +169,13 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       case TransactionType.income:
       case TransactionType.refund:
         _destinationAccountId = null;
-        _accountId = detected?.id ?? (hasCard ? _accountId : cash?.id);
+        _accountId = detected?.id ?? _accountId ?? (hasCard ? null : cash?.id);
         break;
     }
+  }
+
+  bool _hasAccount(String? accountId) {
+    return accountId != null && _accounts.any((account) => account.id == accountId);
   }
 
   AccountModel? _cashAccount() {
@@ -291,7 +305,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       final conversion = await _conversionForSave();
       final effectiveRate =
           conversion.converted && _receiptAmount > 0 ? accountAmount / _receiptAmount : null;
-      await _transactionService.createTransaction(
+      final transaction = await _transactionService.createTransaction(
         amount: accountAmount,
         currency: conversion.toCurrency,
         originalAmount: conversion.converted ? _receiptAmount : null,
@@ -314,6 +328,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
         receiptImageUrl: widget.parsed.persistentReceiptReference,
         rawLlmResponse: widget.parsed.rawLlmResponse,
       );
+      await _recordSavedFeedback(transaction);
 
       final over = await _budgetService.getOverspentBudgets(month: _date);
       await BudgetAlertService.instance.notifyNewOverspentBudgets(over, month: _date);
@@ -452,18 +467,23 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
       ...AppSettingsService.supportedCurrencies,
     }.toList();
 
-    return Scaffold(
-      body: DarkShell(
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
+    return WillPopScope(
+      onWillPop: () async {
+        await _recordCancelledFeedback();
+        return true;
+      },
+      child: Scaffold(
+        body: DarkShell(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              children: [
               ScreenHeader(
                 title: 'Review movement',
                 subtitle: 'Confirm the detected details before saving',
                 glyph: AppGlyph.document,
                 trailing: IconButton.filledTonal(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _cancelReview,
                   icon: const Icon(Icons.arrow_back),
                 ),
               ),
@@ -667,7 +687,8 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                     : Text('Save ${_transactionType.label.toLowerCase()}'),
               ),
               const SizedBox(height: 20),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -856,6 +877,33 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     final next = value.toStringAsFixed(2);
     if (_amountController.text == next) return;
     _amountController.text = next;
+  }
+
+  Future<void> _cancelReview() async {
+    await _recordCancelledFeedback();
+    if (!mounted) return;
+    Navigator.pop(context);
+  }
+
+  Future<void> _recordSavedFeedback(TransactionModel transaction) async {
+    if (_feedbackRecorded || widget.parsed.parseSessionId == null) return;
+    _feedbackRecorded = true;
+    await _apiService.recordReceiptFeedback(
+      parseSessionId: widget.parsed.parseSessionId,
+      outcome: 'saved',
+      finalTransactionId: transaction.id,
+      finalPayload: transaction.toJson(),
+    );
+  }
+
+  Future<void> _recordCancelledFeedback() async {
+    if (_feedbackRecorded || widget.parsed.parseSessionId == null) return;
+    _feedbackRecorded = true;
+    await _apiService.recordReceiptFeedback(
+      parseSessionId: widget.parsed.parseSessionId,
+      outcome: 'cancelled',
+      cancelReason: 'review_dismissed',
+    );
   }
 }
 

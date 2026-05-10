@@ -24,6 +24,8 @@ class ParsedTransaction(BaseModel):
     confidence: float = 0.0
     account_hint: Optional[str] = None
     destination_account_hint: Optional[str] = None
+    suggested_account_id: Optional[str] = None
+    suggested_destination_account_id: Optional[str] = None
     card_last4: Optional[str] = None
     fee_amount: Optional[float] = None
 
@@ -33,6 +35,7 @@ class ParseReceiptResponse(BaseModel):
     data: ParsedTransaction
     receipt_url: Optional[str] = None
     receipt_path: Optional[str] = None
+    parse_session_id: Optional[str] = None
     raw_llm_response: Optional[dict] = None
 
 
@@ -44,6 +47,20 @@ class ParseTextResponse(BaseModel):
     success: bool
     data: ParsedTransaction
     raw_llm_response: Optional[dict] = None
+
+
+class ReceiptFeedbackInput(BaseModel):
+    parse_session_id: Optional[str] = None
+    outcome: str = Field(..., pattern="^(saved|corrected|cancelled|accepted|confirmed)$")
+    final_transaction_id: Optional[str] = None
+    final_payload: Optional[dict] = None
+    cancel_reason: Optional[str] = None
+
+
+class ReceiptFeedbackResponse(BaseModel):
+    success: bool
+    status: str
+    correction_summary: dict = Field(default_factory=dict)
 
 
 class ExportRequest(BaseModel):
