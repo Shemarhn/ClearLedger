@@ -56,6 +56,16 @@ Ship to
 Shemar Marks
 """
 
+RECEIPT_WITH_REFUND_POLICY_TEXT = """
+TECH WORLD STORE
+DATE: 10/05/2026
+USB-C Cable                 1800.00
+Screen Protector            1200.00
+TOTAL                       3000.00
+Paid by card ****4444
+Refunds and exchanges accepted within 7 days with original receipt.
+"""
+
 
 class ReceiptTextParserTests(unittest.TestCase):
     def test_extracts_receipt_candidates_from_ocr_text(self):
@@ -126,6 +136,30 @@ class ReceiptTextParserTests(unittest.TestCase):
         self.assertNotIn("Return or replace items: Eligible through June", item_names)
         self.assertFalse(any("Order #" in item["line"] for item in best_guess["line_items"]))
         self.assertFalse(any("USD = 156" in item["line"] for item in best_guess["line_items"]))
+
+    def test_policy_refund_language_does_not_make_receipt_a_refund(self):
+        candidates = extract_receipt_candidates(RECEIPT_WITH_REFUND_POLICY_TEXT)
+        best_guess = candidates["best_guess"]
+
+        self.assertEqual(best_guess["transaction_type"], "expense")
+        self.assertEqual(best_guess["amount"], 3000.0)
+
+    def test_reconcile_keeps_llm_transaction_type_instead_of_candidate_guess(self):
+        candidates = extract_receipt_candidates(RECEIPT_WITH_REFUND_POLICY_TEXT)
+        candidates["best_guess"]["transaction_type"] = "refund"
+
+        result = reconcile_receipt_result(
+            {
+                "merchant": "Tech World Store",
+                "amount": 3000.0,
+                "currency": "JMD",
+                "transaction_type": "expense",
+                "confidence": 0.91,
+            },
+            candidates,
+        )
+
+        self.assertEqual(result["transaction_type"], "expense")
 
     def test_prepare_receipt_ocr_text_preserves_lines(self):
         prepared = prepare_receipt_ocr_text("  A  \r\n\r\n  B   C  ")

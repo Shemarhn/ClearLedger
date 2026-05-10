@@ -230,7 +230,7 @@ def extract_receipt_candidates(ocr_text: str) -> dict[str, Any]:
     date_candidates = _date_candidates(lines)
     line_item_candidates = _line_item_candidates(lines)
     currency = _detect_currency(full_text)
-    movement = _detect_transaction_type(full_text)
+    movement = _detect_transaction_type(lines)
     card_last4 = _detect_card_last4(full_text)
     fee_amount = _detect_fee_amount(lines)
     category_guess = _guess_category(
@@ -263,7 +263,7 @@ def extract_receipt_candidates(ocr_text: str) -> dict[str, Any]:
             "amount": best_amount,
             "currency": currency,
             "date": best_date,
-            "category": "Other" if movement != "expense" else category_guess,
+            "category": category_guess,
             "line_items": line_item_candidates[:12],
             "transaction_type": movement,
             "card_last4": card_last4,
@@ -781,17 +781,30 @@ def _currencies_in_line(line: str) -> list[str]:
     return currencies
 
 
-def _detect_transaction_type(text: str) -> str:
-    lowered = text.lower()
-    if any(keyword in lowered for keyword in ("withdrawal", "wdl", "cash withdrawal", "atm w/d")):
+def _detect_transaction_type(lines: list[str]) -> str:
+    """
+    Conservative fallback only.
+
+    The LLM is responsible for transaction-type inference. The deterministic
+    parser must not turn isolated policy/help words into a movement type. When
+    providers are unavailable, default to expense unless the document has a
+    bank/ATM shape with source/destination movement evidence.
+    """
+    compact_text = " ".join(line.lower() for line in lines)
+    bank_surface = any(
+        marker in compact_text
+        for marker in ("atm", "account", "available balance", "ledger balance", "branch")
+    )
+    cash_surface = "cash" in compact_text
+    if bank_surface and cash_surface and any(
+        marker in compact_text for marker in ("withdrawal", "cash withdrawal", "atm w/d")
+    ):
         return "withdrawal"
-    if any(keyword in lowered for keyword in ("deposit", "cash deposit", "atm dep")):
+    if bank_surface and cash_surface and any(
+        marker in compact_text for marker in ("deposit", "cash deposit")
+    ):
         return "deposit"
-    if any(keyword in lowered for keyword in ("refund", "reversal", "credited back", "credit memo")):
-        return "refund"
-    if any(keyword in lowered for keyword in ("salary", "payroll", "income")):
-        return "income"
-    if any(keyword in lowered for keyword in ("transfer", "xfer")):
+    if bank_surface and any(marker in compact_text for marker in ("from account", "to account")):
         return "transfer"
     return "expense"
 

@@ -18,8 +18,9 @@ from models import (
     ReceiptFeedbackResponse,
     TextInput,
 )
-from services.gemma_service import parse_receipt_text, parse_text_description
+from services.gemma_service import parse_receipt_image, parse_receipt_text, parse_text_description
 from services.claude_service import (
+    parse_receipt_image_fallback,
     parse_receipt_text_fallback,
     parse_text_description_fallback,
 )
@@ -117,20 +118,48 @@ async def _parse_receipt_impl(
 
     candidates = extract_receipt_candidates(prepared_ocr_text)
 
-    # Parse OCR text with Gemma. If providers fail, use deterministic candidates.
+    # Parse with the vision LLM first so transaction type comes from the whole
+    # receipt/screenshot. OCR candidates are supporting evidence, not authority.
     try:
-        result = await parse_receipt_text(prepared_ocr_text, candidates)
-    except Exception as gemma_error:
-        logger.warning(f"Gemma failed, trying Claude fallback: {gemma_error}")
+        result = await parse_receipt_image(
+            prepared_image.data,
+            prepared_image.mime_type,
+            prepared_ocr_text,
+            candidates,
+        )
+    except Exception as gemma_vision_error:
+        logger.warning(f"Gemma vision failed, trying Gemma OCR text parser: {gemma_vision_error}")
         try:
-            result = await parse_receipt_text_fallback(prepared_ocr_text, candidates)
-        except Exception as claude_error:
-            logger.error(
-                "Both receipt text LLMs failed. "
-                f"Gemma: {gemma_error}, Claude: {claude_error}. "
-                "Using deterministic receipt parser."
+            result = await parse_receipt_text(prepared_ocr_text, candidates)
+        except Exception as gemma_text_error:
+            logger.warning(
+                "Gemma OCR text parser failed, trying Claude vision fallback: "
+                f"{gemma_text_error}"
             )
-            result = parse_receipt_text_basic(prepared_ocr_text, candidates)
+            try:
+                result = await parse_receipt_image_fallback(
+                    prepared_image.data,
+                    prepared_image.mime_type,
+                    prepared_ocr_text,
+                    candidates,
+                )
+            except Exception as claude_vision_error:
+                logger.warning(
+                    "Claude vision failed, trying Claude OCR text fallback: "
+                    f"{claude_vision_error}"
+                )
+                try:
+                    result = await parse_receipt_text_fallback(prepared_ocr_text, candidates)
+                except Exception as claude_text_error:
+                    logger.error(
+                        "All receipt LLMs failed. "
+                        f"Gemma vision: {gemma_vision_error}, "
+                        f"Gemma text: {gemma_text_error}, "
+                        f"Claude vision: {claude_vision_error}, "
+                        f"Claude text: {claude_text_error}. "
+                        "Using deterministic receipt parser."
+                    )
+                    result = parse_receipt_text_basic(prepared_ocr_text, candidates)
 
     result = reconcile_receipt_result(result, candidates)
     result = apply_receipt_memory(_get_supabase(), user_id, result)
