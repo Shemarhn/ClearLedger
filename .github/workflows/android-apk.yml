@@ -37,12 +37,30 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Validate app configuration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://uhlaqkfgmetyymhcznfn.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "Missing SUPABASE_URL. Add it as a GitHub Actions secret or keep the workflow default."
+            exit 1
+          fi
+          if [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "Missing SUPABASE_PUBLISHABLE_KEY. Add it in GitHub > Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
       - name: Build tester APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://uhlaqkfgmetyymhcznfn.supabase.co' }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          API_BASE_URL: ${{ github.event.inputs.api_base_url || 'https://clearledger-production.up.railway.app' }}
         run: >
           flutter build apk --debug
-          --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }}
-          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-          --dart-define=API_BASE_URL=${{ github.event.inputs.api_base_url || 'https://clearledger-production.up.railway.app' }}
+          --dart-define=SUPABASE_URL=$SUPABASE_URL
+          --dart-define=SUPABASE_PUBLISHABLE_KEY=$SUPABASE_PUBLISHABLE_KEY
+          --dart-define=API_BASE_URL=$API_BASE_URL
           --dart-define=ENABLE_PUSH_NOTIFICATIONS=false
 
       - name: Rename APK
