@@ -17,16 +17,14 @@ class DarkShell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      decoration: BoxDecoration(
-        color: scheme.surface,
-      ),
+      decoration: BoxDecoration(color: scheme.surface),
       child: SafeArea(
         bottom: false,
         child: Stack(
           children: [
             Positioned.fill(
               child: ColoredBox(
-                color: dark ? const Color(0xFF0E1110) : const Color(0xFFF4F6F2),
+                color: dark ? const Color(0xFF080B0A) : const Color(0xFFF4F6F2),
               ),
             ),
             Align(
@@ -93,13 +91,13 @@ class FinanceHeroPanel extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF10211D) : const Color(0xFF10251F),
+        color: dark ? const Color(0xFF0D241F) : const Color(0xFF10251F),
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withValues(alpha: dark ? 0.10 : 0.12),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            color: scheme.primary.withValues(alpha: dark ? 0.16 : 0.12),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
           ),
         ],
       ),

@@ -90,7 +90,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         }),
                         const SizedBox(height: 14),
                         _NetWorthCard(summary: _summary, spent: _totalSpent, income: _totalIncome),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 22),
+                        const SectionHeading(title: 'Accounts'),
+                        const SizedBox(height: 10),
                         _AccountStrip(accounts: _summary?.accounts ?? const []),
                         const SizedBox(height: 22),
                         SectionHeading(
@@ -99,14 +101,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                         const SizedBox(height: 8),
                         if (_recent.isEmpty)
-                          const FinanceCard(child: Text('No transactions yet.'))
+                          const FinanceSurface(child: Text('No transactions yet.'))
                         else
                           ..._recent.map((tx) => TransactionTile(transaction: tx)),
                         const SizedBox(height: 18),
                         const SectionHeading(title: 'Budget pulse'),
                         const SizedBox(height: 8),
                         if (_budgets.isEmpty)
-                          const FinanceCard(
+                          const FinanceSurface(
                             child: Text('No budgets set for this month.'),
                           )
                         else
@@ -177,7 +179,7 @@ class _NetWorthCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final balance = summary?.netWorth ?? income - spent;
     return FinanceHeroPanel(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -205,13 +207,13 @@ class _NetWorthCard extends StatelessWidget {
                 ),
               ),
               Container(
-                width: 46,
-                height: 46,
+                width: 54,
+                height: 54,
                 decoration: BoxDecoration(
-                  color: scheme.primary,
+                  color: const Color(0xFF90E7D4),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.trending_up_rounded, color: scheme.onPrimary),
+                child: Icon(Icons.trending_up_rounded, color: scheme.scrim),
               ),
             ],
           ),
@@ -299,33 +301,47 @@ class _AccountStrip extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 118,
+      height: 132,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: accounts.take(5).length,
-        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        separatorBuilder: (_, _) => const SizedBox(width: 14),
         itemBuilder: (context, index) {
           final account = accounts[index];
+          final palette = _accountPalette(index);
           return SizedBox(
-            width: 208,
-            child: FinanceSurface(
-              padding: const EdgeInsets.all(14),
+            width: 214,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: palette.background,
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      AppIconBadge(glyph: _glyphForAccount(account.type), size: 36),
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: palette.ink.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: AppIconBadge(
+                          glyph: _glyphForAccount(account.type),
+                          color: palette.ink,
+                          size: 42,
+                        ),
+                      ),
                       const Spacer(),
                       Text(
                         account.currency.isNotEmpty
                             ? account.currency
                             : preferredCurrency,
                         style: TextStyle(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSurface
-                              .withValues(alpha: 0.56),
+                          color: palette.ink.withValues(alpha: 0.58),
                           fontWeight: FontWeight.w900,
                           fontSize: 12,
                         ),
@@ -337,7 +353,7 @@ class _AccountStrip extends StatelessWidget {
                     account.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(color: palette.ink, fontWeight: FontWeight.w900),
                   ),
                   const SizedBox(height: 4),
                   AmountText(
@@ -345,8 +361,8 @@ class _AccountStrip extends StatelessWidget {
                     currency: account.currency.isNotEmpty ? account.currency : preferredCurrency,
                     compact: true,
                     color: account.currentBalance < 0
-                        ? AppConstants.errorRed
-                        : Theme.of(context).colorScheme.onSurface,
+                        ? const Color(0xFFB4232F)
+                        : palette.ink,
                   ),
                 ],
               ),
@@ -372,6 +388,24 @@ class _AccountStrip extends StatelessWidget {
         return AppGlyph.accounts;
     }
   }
+
+  _AccountPalette _accountPalette(int index) {
+    const palettes = [
+      _AccountPalette(Color(0xFFE8F7EF), Color(0xFF10211D)),
+      _AccountPalette(Color(0xFFE4F4FF), Color(0xFF102235)),
+      _AccountPalette(Color(0xFFF2F3CC), Color(0xFF25250E)),
+      _AccountPalette(Color(0xFFF5E9FF), Color(0xFF251530)),
+      _AccountPalette(Color(0xFFFFEEE7), Color(0xFF331A10)),
+    ];
+    return palettes[index % palettes.length];
+  }
+}
+
+class _AccountPalette {
+  const _AccountPalette(this.background, this.ink);
+
+  final Color background;
+  final Color ink;
 }
 
 class _ErrorState extends StatelessWidget {

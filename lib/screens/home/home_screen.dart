@@ -28,25 +28,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       key: _scaffoldKey,
       drawer: _AppDrawer(onOpenPage: _openPage),
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Ledger'),
-          NavigationDestination(icon: Icon(Icons.add_box_outlined), label: 'Add'),
-          NavigationDestination(icon: Icon(Icons.tune_outlined), label: 'More'),
-        ],
-        onDestinationSelected: (value) {
-          if (value == 3) {
-            _scaffoldKey.currentState?.openDrawer();
-            return;
-          }
-          setState(() => _index = value);
-        },
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: dark ? const Color(0xFF111715) : scheme.surfaceContainerLowest,
+          border: Border(
+            top: BorderSide(
+              color: dark ? Colors.white.withValues(alpha: 0.05) : scheme.outlineVariant,
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          backgroundColor: Colors.transparent,
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+            NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Ledger'),
+            NavigationDestination(icon: Icon(Icons.add_box_outlined), label: 'Add'),
+            NavigationDestination(icon: Icon(Icons.tune_outlined), label: 'More'),
+          ],
+          onDestinationSelected: (value) {
+            if (value == 3) {
+              _scaffoldKey.currentState?.openDrawer();
+              return;
+            }
+            setState(() => _index = value);
+          },
+        ),
       ),
     );
   }
