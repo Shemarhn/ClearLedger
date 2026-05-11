@@ -26,17 +26,9 @@ class TransactionTile extends StatelessWidget {
             : '-';
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-    final surface = dark ? const Color(0xFFF4F7F0) : Colors.white;
-    final stroke = dark
-        ? Colors.transparent
-        : scheme.outlineVariant.withValues(alpha: 0.72);
-    final titleColor = dark ? const Color(0xFF111613) : scheme.onSurface;
-    final muted = dark
-        ? const Color(0xFF68706A)
-        : scheme.onSurface.withValues(alpha: 0.62);
-    final amountColor = dark
-        ? _darkAmountColor(transaction.transactionType)
-        : color;
+    final surface = dark ? scheme.surfaceContainerLowest : Colors.white;
+    final stroke = scheme.outlineVariant.withValues(alpha: dark ? 0.42 : 0.72);
+    final muted = scheme.onSurface.withValues(alpha: 0.62);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -50,14 +42,14 @@ class TransactionTile extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         leading: AppIconBadge(
           glyph: _glyphForType(transaction.transactionType),
-          color: amountColor,
+          color: color,
           size: 42,
         ),
         title: Text(
           transaction.merchant ?? transaction.transactionType.label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: titleColor, fontWeight: FontWeight.w900),
+          style: const TextStyle(fontWeight: FontWeight.w900),
         ),
         subtitle: Text(
           '${transaction.transactionType.label} - ${transaction.category} - $dateText',
@@ -72,7 +64,7 @@ class TransactionTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
-            style: TextStyle(color: amountColor, fontWeight: FontWeight.w900, fontSize: 15),
+            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 15),
           ),
         ),
       ),
@@ -83,12 +75,6 @@ class TransactionTile extends StatelessWidget {
     if (type.isInflow) return AppConstants.successGreen;
     if (type.isTransfer) return Theme.of(context).colorScheme.primary;
     return AppConstants.errorRed;
-  }
-
-  Color _darkAmountColor(TransactionType type) {
-    if (type.isInflow) return const Color(0xFF027A48);
-    if (type.isTransfer) return const Color(0xFF006D75);
-    return const Color(0xFFB4232F);
   }
 
   AppGlyph _glyphForType(TransactionType type) {
