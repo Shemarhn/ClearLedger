@@ -86,8 +86,8 @@ async def export_csv(body: ExportRequest, user_id: str = Depends(get_user_id)):
     csv_content = generate_csv(transactions)
 
     return Response(
-        content=csv_content,
-        media_type="text/csv",
+        content=csv_content.encode("utf-8"),
+        media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": (
                 f'attachment; filename="clearledger_export_{body.start_date}_{body.end_date}.csv"'

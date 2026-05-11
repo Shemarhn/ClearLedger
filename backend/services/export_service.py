@@ -183,7 +183,7 @@ def generate_csv(transactions: list[dict[str, Any]]) -> str:
         CSV content as a string.
     """
     output = io.StringIO()
-    writer = csv.writer(output)
+    writer = csv.writer(output, lineterminator="\n")
 
     # Header row
     writer.writerow(
@@ -204,20 +204,26 @@ def generate_csv(transactions: list[dict[str, Any]]) -> str:
     for t in transactions:
         writer.writerow(
             [
-                t.get("transaction_date", ""),
-                t.get("merchant", ""),
-                t.get("category", ""),
-                t.get("transaction_type", "expense"),
-                t.get("description", ""),
-                t.get("amount", 0),
-                t.get("currency", "JMD"),
-                t.get("card_last4", ""),
-                t.get("fee_amount", ""),
-                t.get("input_method", ""),
+                _csv_cell(t.get("transaction_date", "")),
+                _csv_cell(t.get("merchant", "")),
+                _csv_cell(t.get("category", "")),
+                _csv_cell(t.get("transaction_type", "expense")),
+                _csv_cell(t.get("description", "")),
+                _csv_cell(t.get("amount", 0)),
+                _csv_cell(t.get("currency", "JMD")),
+                _csv_cell(t.get("card_last4", "")),
+                _csv_cell(t.get("fee_amount", "")),
+                _csv_cell(t.get("input_method", "")),
             ]
         )
 
-    return output.getvalue()
+    return "\ufeff" + output.getvalue()
+
+
+def _csv_cell(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).replace("\r", " ").replace("\n", " ").strip()
 
 
 def _report_currency(transactions: list[dict[str, Any]]) -> str:

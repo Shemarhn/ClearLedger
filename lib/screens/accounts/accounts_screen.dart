@@ -4,6 +4,7 @@ import '../../core/constants.dart';
 import '../../models/account.dart';
 import '../../services/account_service.dart';
 import '../../services/app_settings_service.dart';
+import '../../services/exchange_rate_service.dart';
 import '../../widgets/dark_shell.dart';
 
 class AccountsScreen extends StatefulWidget {
@@ -272,10 +273,13 @@ class _AccountSheetState extends State<_AccountSheet> {
   final _name = TextEditingController();
   final _opening = TextEditingController();
   final _service = AccountService();
+  final _exchangeRateService = ExchangeRateService();
   AccountType _type = AccountType.checking;
   String _currency = AppSettingsService.instance.preferredCurrency;
+  String _originalCurrency = AppSettingsService.instance.preferredCurrency;
   bool _cashDefault = false;
   bool _saving = false;
+  bool _convertingOpening = false;
 
   bool get _editing => widget.account != null;
 
@@ -289,6 +293,7 @@ class _AccountSheetState extends State<_AccountSheet> {
     _currency = account?.currency.isNotEmpty == true
         ? account!.currency
         : AppSettingsService.instance.preferredCurrency;
+    _originalCurrency = _currency;
     _cashDefault = account?.isDefaultCash ?? false;
   }
 
@@ -342,6 +347,43 @@ class _AccountSheetState extends State<_AccountSheet> {
     }
   }
 
+  Future<void> _changeCurrency(String nextCurrency) async {
+    if (nextCurrency == _currency || _convertingOpening) return;
+
+    final currentAmount = double.tryParse(_opening.text.trim());
+    if (currentAmount == null) {
+      setState(() => _currency = nextCurrency);
+      return;
+    }
+
+    final fromCurrency = _currency;
+    setState(() {
+      _currency = nextCurrency;
+      _convertingOpening = true;
+    });
+
+    try {
+      final conversion = await _exchangeRateService.convert(
+        amount: currentAmount.abs(),
+        fromCurrency: fromCurrency,
+        toCurrency: nextCurrency,
+      );
+      if (!mounted) return;
+      final converted = currentAmount < 0
+          ? -conversion.convertedAmount
+          : conversion.convertedAmount;
+      _opening.text = converted.toStringAsFixed(2);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _currency = fromCurrency);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not convert $fromCurrency to $nextCurrency: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _convertingOpening = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -377,16 +419,27 @@ class _AccountSheetState extends State<_AccountSheet> {
             items: AppSettingsService.supportedCurrencies
                 .map((currency) => DropdownMenuItem(value: currency, child: Text(currency)))
                 .toList(),
-            onChanged: (value) {
-              if (value != null) setState(() => _currency = value);
-            },
+            onChanged: _convertingOpening
+                ? null
+                : (value) {
+                    if (value != null) _changeCurrency(value);
+                  },
             decoration: const InputDecoration(labelText: 'Account currency'),
           ),
+          if (_convertingOpening) ...[
+            const SizedBox(height: 8),
+            const LinearProgressIndicator(),
+          ],
           const SizedBox(height: 12),
           TextField(
             controller: _opening,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(labelText: 'Opening balance ($_currency)'),
+            decoration: InputDecoration(
+              labelText: 'Opening balance ($_currency)',
+              helperText: _editing && _currency != _originalCurrency
+                  ? 'Converted from $_originalCurrency to preserve this account value.'
+                  : null,
+            ),
           ),
           CheckboxListTile(
             contentPadding: EdgeInsets.zero,
@@ -395,8 +448,14 @@ class _AccountSheetState extends State<_AccountSheet> {
             title: const Text('Default cash account'),
           ),
           ElevatedButton(
-            onPressed: _saving ? null : _save,
-            child: Text(_saving ? 'Saving...' : (_editing ? 'Save changes' : 'Save account')),
+            onPressed: _saving || _convertingOpening ? null : _save,
+            child: Text(
+              _saving
+                  ? 'Saving...'
+                  : _convertingOpening
+                      ? 'Converting...'
+                      : (_editing ? 'Save changes' : 'Save account'),
+            ),
           ),
         ],
       ),
