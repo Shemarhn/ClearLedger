@@ -88,11 +88,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             MaterialPageRoute(builder: (_) => const SettingsScreen()),
                           );
                         }),
-                        const SizedBox(height: 14),
+                        const SizedBox(height: 12),
                         _NetWorthCard(summary: _summary, spent: _totalSpent, income: _totalIncome),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         _AccountStrip(accounts: _summary?.accounts ?? const []),
-                        const SizedBox(height: 22),
+                        const SizedBox(height: 20),
                         SectionHeading(
                           title: 'Recent activity',
                           trailing: '${_recent.length} items',
@@ -127,24 +127,30 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
+    final scheme = Theme.of(context).colorScheme;
+    final muted = scheme.onSurface.withValues(alpha: 0.62);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      padding: const EdgeInsets.fromLTRB(2, 2, 2, 0),
       child: Row(
         children: [
-          const AppLogoMark(size: 42),
+          const AppLogoMark(size: 46),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'ClearLedger',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Your money, organized',
+                  'Money movement cockpit',
                   style: TextStyle(color: muted, fontWeight: FontWeight.w700),
                 ),
               ],
@@ -177,7 +183,7 @@ class _NetWorthCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final balance = summary?.netWorth ?? income - spent;
     return FinanceHeroPanel(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -191,6 +197,7 @@ class _NetWorthCard extends StatelessWidget {
                       'Net worth',
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.72),
+                        fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -205,8 +212,8 @@ class _NetWorthCard extends StatelessWidget {
                 ),
               ),
               Container(
-                width: 46,
-                height: 46,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
                   color: scheme.primary,
                   borderRadius: BorderRadius.circular(8),
@@ -215,14 +222,26 @@ class _NetWorthCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 62,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _BalanceSparklinePainter(
+                lineColor: scheme.primary,
+                fillColor: scheme.primary.withValues(alpha: 0.14),
+                gridColor: Colors.white.withValues(alpha: 0.08),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
                 child: _MiniMetric(
                   label: 'Inflow',
                   value: '+$currency ${income.toStringAsFixed(0)}',
-                  color: const Color(0xFFBDF264),
+                  color: scheme.primary,
                 ),
               ),
               const SizedBox(width: 10),
@@ -255,10 +274,11 @@ class _MiniMetric extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withValues(alpha: 0.075),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -299,7 +319,7 @@ class _AccountStrip extends StatelessWidget {
     }
 
     return SizedBox(
-      height: 118,
+      height: 136,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: accounts.take(5).length,
@@ -307,15 +327,15 @@ class _AccountStrip extends StatelessWidget {
         itemBuilder: (context, index) {
           final account = accounts[index];
           return SizedBox(
-            width: 208,
+            width: 178,
             child: FinanceSurface(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      AppIconBadge(glyph: _glyphForAccount(account.type), size: 36),
+                      AppIconBadge(glyph: _glyphForAccount(account.type), size: 38),
                       const Spacer(),
                       Text(
                         account.currency.isNotEmpty
@@ -348,6 +368,17 @@ class _AccountStrip extends StatelessWidget {
                         ? AppConstants.errorRed
                         : Theme.of(context).colorScheme.onSurface,
                   ),
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(
+                    minHeight: 4,
+                    value: (account.currentBalance.abs() % 100000) / 100000,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant
+                        .withValues(alpha: 0.28),
+                    color: Theme.of(context).colorScheme.primary,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ],
               ),
             ),
@@ -371,6 +402,75 @@ class _AccountStrip extends StatelessWidget {
       case AccountType.other:
         return AppGlyph.accounts;
     }
+  }
+}
+
+class _BalanceSparklinePainter extends CustomPainter {
+  const _BalanceSparklinePainter({
+    required this.lineColor,
+    required this.fillColor,
+    required this.gridColor,
+  });
+
+  final Color lineColor;
+  final Color fillColor;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (final y in [0.28, 0.56, 0.84]) {
+      canvas.drawLine(
+        Offset(0, size.height * y),
+        Offset(size.width, size.height * y),
+        gridPaint,
+      );
+    }
+
+    final points = <Offset>[
+      Offset(0, size.height * 0.78),
+      Offset(size.width * 0.12, size.height * 0.70),
+      Offset(size.width * 0.22, size.height * 0.74),
+      Offset(size.width * 0.34, size.height * 0.48),
+      Offset(size.width * 0.47, size.height * 0.55),
+      Offset(size.width * 0.60, size.height * 0.34),
+      Offset(size.width * 0.73, size.height * 0.38),
+      Offset(size.width * 0.86, size.height * 0.21),
+      Offset(size.width, size.height * 0.28),
+    ];
+
+    final line = Path()..moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      final previous = points[i - 1];
+      final current = points[i];
+      final midX = (previous.dx + current.dx) / 2;
+      line.cubicTo(midX, previous.dy, midX, current.dy, current.dx, current.dy);
+    }
+
+    final fill = Path.from(line)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(fill, Paint()..color = fillColor);
+    canvas.drawPath(
+      line,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = 3,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BalanceSparklinePainter oldDelegate) {
+    return oldDelegate.lineColor != lineColor ||
+        oldDelegate.fillColor != fillColor ||
+        oldDelegate.gridColor != gridColor;
   }
 }
 

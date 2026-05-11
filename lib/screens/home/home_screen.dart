@@ -32,21 +32,34 @@ class _HomeScreenState extends State<HomeScreen> {
       key: _scaffoldKey,
       drawer: _AppDrawer(onOpenPage: _openPage),
       body: IndexedStack(index: _index, children: _screens),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Ledger'),
-          NavigationDestination(icon: Icon(Icons.add_box_outlined), label: 'Add'),
-          NavigationDestination(icon: Icon(Icons.tune_outlined), label: 'More'),
-        ],
-        onDestinationSelected: (value) {
-          if (value == 3) {
-            _scaffoldKey.currentState?.openDrawer();
-            return;
-          }
-          setState(() => _index = value);
-        },
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).navigationBarTheme.backgroundColor,
+          border: Border(
+            top: BorderSide(
+              color: Theme.of(context)
+                  .colorScheme
+                  .outlineVariant
+                  .withValues(alpha: 0.45),
+            ),
+          ),
+        ),
+        child: NavigationBar(
+          selectedIndex: _index,
+          destinations: const [
+            NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+            NavigationDestination(icon: Icon(Icons.list_alt_outlined), label: 'Ledger'),
+            NavigationDestination(icon: Icon(Icons.add_box_outlined), label: 'Add'),
+            NavigationDestination(icon: Icon(Icons.tune_outlined), label: 'More'),
+          ],
+          onDestinationSelected: (value) {
+            if (value == 3) {
+              _scaffoldKey.currentState?.openDrawer();
+              return;
+            }
+            setState(() => _index = value);
+          },
+        ),
       ),
     );
   }
@@ -66,10 +79,9 @@ class _AppDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-    final primary = scheme.primary;
     final muted = scheme.onSurface.withValues(alpha: 0.62);
     return Drawer(
-      backgroundColor: dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest,
+      backgroundColor: dark ? const Color(0xFF07131F) : scheme.surfaceContainerLowest,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 24, 18, 18),
@@ -84,7 +96,7 @@ class _AppDrawer extends StatelessWidget {
                   Text(
                     'ClearLedger',
                     style: TextStyle(
-                      color: primary,
+                      color: scheme.onSurface,
                       fontSize: 31,
                       fontWeight: FontWeight.w900,
                       height: 1,

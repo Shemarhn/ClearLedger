@@ -26,9 +26,41 @@ class DarkShell extends StatelessWidget {
           children: [
             Positioned.fill(
               child: ColoredBox(
-                color: dark ? const Color(0xFF0E1110) : const Color(0xFFF4F6F2),
+                color: dark ? const Color(0xFF07131F) : const Color(0xFFF4F7F5),
               ),
             ),
+            if (dark) ...[
+              Positioned(
+                top: -96,
+                right: -130,
+                child: Transform.rotate(
+                  angle: -0.55,
+                  child: Container(
+                    width: 300,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      color: scheme.primary.withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 88,
+                left: -150,
+                child: Transform.rotate(
+                  angle: -0.60,
+                  child: Container(
+                    width: 310,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: scheme.secondary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ),
+            ],
             Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
@@ -65,8 +97,11 @@ class FinanceSurface extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: color ?? (dark ? scheme.surfaceContainerLowest : Colors.white),
+        color: color ?? (dark ? const Color(0xFF0B1927) : Colors.white),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: dark ? 0.56 : 0.80),
+        ),
       ),
       child: Padding(
         padding: padding,
@@ -93,19 +128,61 @@ class FinanceHeroPanel extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF10211D) : const Color(0xFF10251F),
+        color: dark ? const Color(0xFF0B1B2A) : const Color(0xFF0A1E2C),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.black.withValues(alpha: 0.08),
+        ),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withValues(alpha: dark ? 0.10 : 0.12),
-            blurRadius: 22,
-            offset: const Offset(0, 12),
+            color: scheme.primary.withValues(alpha: dark ? 0.18 : 0.16),
+            blurRadius: 26,
+            offset: const Offset(0, 16),
           ),
         ],
       ),
-      child: Padding(
-        padding: padding,
-        child: child,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -56,
+              top: -42,
+              child: Transform.rotate(
+                angle: -0.45,
+                child: Container(
+                  width: 170,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: 0.30),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: -74,
+              bottom: -42,
+              child: Transform.rotate(
+                angle: -0.60,
+                child: Container(
+                  width: 210,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: scheme.secondary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: padding,
+              child: child,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -130,8 +207,8 @@ class FinanceCard extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final surfaceColor =
-        color ?? (dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest);
-    final borderColor = scheme.outlineVariant.withValues(alpha: dark ? 0.52 : 0.84);
+        color ?? (dark ? const Color(0xFF0B1927) : scheme.surfaceContainerLowest);
+    final borderColor = scheme.outlineVariant.withValues(alpha: dark ? 0.62 : 0.84);
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
@@ -140,10 +217,10 @@ class FinanceCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: dark
-                ? Colors.black.withValues(alpha: 0.10)
+                ? Colors.black.withValues(alpha: 0.24)
                 : Colors.black.withValues(alpha: 0.035),
-            blurRadius: dark ? 6 : 12,
-            offset: const Offset(0, 6),
+            blurRadius: dark ? 18 : 12,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -204,10 +281,10 @@ class AppLogoMark extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: colorScheme.primaryContainer,
+        color: colorScheme.primary.withValues(alpha: dark ? 0.18 : 0.12),
         borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(
-          color: colorScheme.primary.withValues(alpha: dark ? 0.46 : 0.34),
+          color: colorScheme.primary.withValues(alpha: dark ? 0.58 : 0.34),
           width: 1.2,
         ),
         boxShadow: glow
@@ -353,7 +430,7 @@ class ScreenHeader extends StatelessWidget {
       title,
       textAlign: centered ? TextAlign.center : TextAlign.start,
       style: TextStyle(
-        color: centered ? Theme.of(context).colorScheme.primary : onSurface,
+        color: onSurface,
         fontSize: centered ? 31 : 27,
         fontWeight: FontWeight.w900,
         height: 1.08,
@@ -439,10 +516,10 @@ class AppIconBadge extends StatelessWidget {
     assert(icon != null || glyph != null);
     final scheme = Theme.of(context).colorScheme;
     final hasCustomColor = color != null;
-    final badgeColor = color ?? scheme.onPrimaryContainer;
+    final badgeColor = color ?? scheme.primary;
     final badgeFill = hasCustomColor
         ? color!.withValues(alpha: 0.13)
-        : scheme.primaryContainer;
+        : scheme.primary.withValues(alpha: 0.14);
     return Container(
       width: size,
       height: size,

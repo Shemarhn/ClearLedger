@@ -61,25 +61,25 @@ class AppTheme {
 
     if (brightness == Brightness.dark) {
       return scheme.copyWith(
-        surface: const Color(0xFF0E1110),
-        surfaceContainerLowest: const Color(0xFF151817),
-        surfaceContainerLow: const Color(0xFF1B201E),
-        surfaceContainer: const Color(0xFF222825),
-        surfaceContainerHigh: const Color(0xFF2B322F),
-        surfaceContainerHighest: const Color(0xFF353D39),
-        outlineVariant: const Color(0xFF3E4742),
+        surface: const Color(0xFF07131F),
+        surfaceContainerLowest: const Color(0xFF0A1724),
+        surfaceContainerLow: const Color(0xFF0F1E2C),
+        surfaceContainer: const Color(0xFF142638),
+        surfaceContainerHigh: const Color(0xFF1B3044),
+        surfaceContainerHighest: const Color(0xFF263A50),
+        outlineVariant: const Color(0xFF2D4054),
         error: AppConstants.errorRed,
       );
     }
 
     return scheme.copyWith(
-      surface: const Color(0xFFF4F6F2),
+      surface: const Color(0xFFF4F7F5),
       surfaceContainerLowest: Colors.white,
-      surfaceContainerLow: const Color(0xFFECEFEC),
-      surfaceContainer: const Color(0xFFE6EBE6),
-      surfaceContainerHigh: const Color(0xFFDDE4DE),
-      surfaceContainerHighest: const Color(0xFFD3DDD5),
-      outlineVariant: const Color(0xFFD8DFDA),
+      surfaceContainerLow: const Color(0xFFEAF0ED),
+      surfaceContainer: const Color(0xFFE2EBE6),
+      surfaceContainerHigh: const Color(0xFFD8E3DD),
+      surfaceContainerHighest: const Color(0xFFCBD9D1),
+      outlineVariant: const Color(0xFFD8E1DD),
       error: AppConstants.errorRed,
     );
   }
@@ -121,8 +121,10 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        fillColor: brightness == Brightness.dark
+            ? colorScheme.surfaceContainerLow
+            : colorScheme.surfaceContainerLowest,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
         labelStyle: TextStyle(color: muted),
         hintStyle: TextStyle(color: muted),
         border: OutlineInputBorder(
@@ -147,7 +149,7 @@ class AppTheme {
           elevation: 0,
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(54),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -174,10 +176,12 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
+        backgroundColor: brightness == Brightness.dark
+            ? const Color(0xFF091724)
+            : surface,
         elevation: 0,
-        height: 70,
-        indicatorColor: colorScheme.primaryContainer,
+        height: 76,
+        indicatorColor: colorScheme.primary.withValues(alpha: 0.18),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.selected)
@@ -198,7 +202,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceHigh,
-        selectedColor: colorScheme.primaryContainer,
+        selectedColor: colorScheme.primary.withValues(alpha: 0.18),
         side: BorderSide(color: stroke),
         labelStyle: TextStyle(color: onSurface, fontWeight: FontWeight.w700),
         secondaryLabelStyle: TextStyle(color: onSurface, fontWeight: FontWeight.w800),
@@ -218,11 +222,15 @@ class AppTheme {
       ),
       dividerTheme: DividerThemeData(color: stroke, space: 24),
       drawerTheme: DrawerThemeData(
-        backgroundColor: surface,
+        backgroundColor: brightness == Brightness.dark
+            ? const Color(0xFF091724)
+            : surface,
         surfaceTintColor: Colors.transparent,
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: surface,
+        backgroundColor: brightness == Brightness.dark
+            ? colorScheme.surfaceContainerLow
+            : surface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),

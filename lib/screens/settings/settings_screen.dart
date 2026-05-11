@@ -33,7 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _biometricEnabled = false;
   ThemeMode _themeMode = ThemeMode.system;
   String _currency = 'JMD';
-  String _accentThemeId = 'mint';
+  String _accentThemeId = AppSettingsService.systemAccentThemeId;
   ExchangeRateSnapshot? _rateSnapshot;
 
   @override
@@ -377,7 +377,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: selected
-              ? scheme.primaryContainer.withValues(alpha: 0.72)
+              ? scheme.primary.withValues(alpha: 0.18)
               : scheme.surfaceContainerHighest.withValues(alpha: 0.62),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(

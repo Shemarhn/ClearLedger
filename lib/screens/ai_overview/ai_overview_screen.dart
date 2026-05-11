@@ -263,11 +263,12 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
     return FinanceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: AppConstants.darkMuted)),
+          Text(label, style: TextStyle(color: muted)),
           const SizedBox(height: 8),
           Text(
             value,
@@ -294,6 +295,7 @@ class _InsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
     return FinanceCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,7 +326,7 @@ class _InsightCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       item,
-                      style: const TextStyle(color: AppConstants.darkMuted, height: 1.35),
+                      style: TextStyle(color: muted, height: 1.35),
                     ),
                   ),
                 ],

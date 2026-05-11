@@ -26,20 +26,28 @@ class TransactionTile extends StatelessWidget {
             : '-';
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-    final surface = dark ? scheme.surfaceContainerLowest : Colors.white;
-    final stroke = scheme.outlineVariant.withValues(alpha: dark ? 0.42 : 0.72);
+    final surface = dark ? const Color(0xFF0B1927) : Colors.white;
+    final stroke = scheme.outlineVariant.withValues(alpha: dark ? 0.58 : 0.72);
     final muted = scheme.onSurface.withValues(alpha: 0.62);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: stroke),
+        boxShadow: [
+          if (dark)
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 14,
+              offset: const Offset(0, 8),
+            ),
+        ],
       ),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         leading: AppIconBadge(
           glyph: _glyphForType(transaction.transactionType),
           color: color,
@@ -64,7 +72,7 @@ class TransactionTile extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.end,
-            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 15),
+            style: TextStyle(color: color, fontWeight: FontWeight.w900, fontSize: 16),
           ),
         ),
       ),

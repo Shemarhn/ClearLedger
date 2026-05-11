@@ -80,7 +80,7 @@ class AppSettingsService extends ChangeNotifier {
 
   ThemeMode _themeMode = ThemeMode.system;
   String _preferredCurrency = 'JMD';
-  String _accentThemeId = 'mint';
+  String _accentThemeId = systemAccentThemeId;
   bool _loaded = false;
   String? _profileLoadedUserId;
 
@@ -101,7 +101,8 @@ class AppSettingsService extends ChangeNotifier {
     if (!_loaded) {
       _themeMode = _themeModeFromString(prefs.getString(_themeKey)) ?? ThemeMode.system;
       _preferredCurrency = _normalizeCurrency(prefs.getString(_currencyKey)) ?? 'JMD';
-      _accentThemeId = _normalizeAccentTheme(prefs.getString(_accentThemeKey)) ?? 'mint';
+      _accentThemeId =
+          _normalizeAccentTheme(prefs.getString(_accentThemeKey)) ?? systemAccentThemeId;
     }
 
     if (user != null) {

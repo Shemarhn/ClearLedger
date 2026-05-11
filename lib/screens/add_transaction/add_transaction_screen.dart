@@ -130,22 +130,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   }
 
   Widget _photoMode() {
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
-    return FinanceCard(
+    final scheme = Theme.of(context).colorScheme;
+    return FinanceHeroPanel(
       padding: const EdgeInsets.all(22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const AppIconBadge(glyph: AppGlyph.receipt, size: 50),
+          AppIconBadge(glyph: AppGlyph.receipt, size: 50, color: scheme.primary),
           const SizedBox(height: 18),
           const Text(
             'Read a receipt or ATM slip',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           Text(
             'Receipts, ATM slips, card purchases, and cash movements stay in one place.',
-            style: TextStyle(color: muted, height: 1.35, fontWeight: FontWeight.w700),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.68),
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 22),
           ElevatedButton.icon(
@@ -164,7 +168,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             const LinearProgressIndicator(),
             if (_imageStatus != null) ...[
               const SizedBox(height: 10),
-              Text(_imageStatus!, style: TextStyle(color: muted, fontWeight: FontWeight.w700)),
+              Text(
+                _imageStatus!,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
           ],
         ],

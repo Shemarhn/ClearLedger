@@ -138,9 +138,14 @@ class _AccountsScreenState extends State<AccountsScreen> {
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
+                            Text(
                               'Cash, bank, and card accounts will appear here.',
-                              style: TextStyle(color: AppConstants.darkMuted),
+                              style: TextStyle(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface
+                                    .withValues(alpha: 0.62),
+                              ),
                             ),
                             const SizedBox(height: 14),
                             ElevatedButton.icon(
@@ -188,6 +193,7 @@ class _AccountCard extends StatelessWidget {
     final currency = account.currency.isNotEmpty
         ? account.currency
         : AppSettingsService.instance.preferredCurrency;
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
     return FinanceCard(
       child: Row(
         children: [
@@ -212,7 +218,7 @@ class _AccountCard extends StatelessWidget {
                   ].join(' - '),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppConstants.darkMuted, fontSize: 12),
+                  style: TextStyle(color: muted, fontSize: 12),
                 ),
               ],
             ),
