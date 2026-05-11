@@ -1,7 +1,11 @@
 import '../models/transaction.dart';
 import '../core/supabase_client.dart';
+import 'app_refresh_service.dart';
+import 'exchange_rate_service.dart';
 
 class TransactionService {
+  final _exchangeRateService = ExchangeRateService();
+
   // Fetch transactions with optional filters
   Future<List<TransactionModel>> getTransactions({
     DateTime? startDate,
@@ -100,12 +104,14 @@ class TransactionService {
         .select()
         .single();
 
+    AppRefreshService.instance.transactionsChanged();
     return TransactionModel.fromJson(response);
   }
 
   // Delete transaction
   Future<void> deleteTransaction(String id) async {
     await supabase.from('transactions').delete().eq('id', id);
+    AppRefreshService.instance.transactionsChanged();
   }
 
   // Update transaction
@@ -116,7 +122,61 @@ class TransactionService {
         .eq('id', id)
         .select()
         .single();
+    AppRefreshService.instance.transactionsChanged();
     return TransactionModel.fromJson(response);
+  }
+
+  Future<void> convertUserTransactionsCurrency(
+    String targetCurrency, {
+    bool notify = true,
+  }) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final target = _normalizeCurrency(targetCurrency);
+    final response = await supabase
+        .from('transactions')
+        .select('id, amount, currency, original_amount, original_currency, fee_amount')
+        .eq('user_id', user.id);
+
+    for (final row in response as List) {
+      final id = row['id'] as String?;
+      final amount = (row['amount'] as num?)?.toDouble();
+      final currency = _normalizeCurrency(row['currency'] as String? ?? target);
+      if (id == null || amount == null || currency == target) continue;
+
+      final conversion = await _exchangeRateService.convert(
+        amount: amount.abs(),
+        fromCurrency: currency,
+        toCurrency: target,
+      );
+      final convertedAmount =
+          amount < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
+
+      final fee = (row['fee_amount'] as num?)?.toDouble();
+      double? convertedFee;
+      if (fee != null) {
+        final feeConversion = await _exchangeRateService.convert(
+          amount: fee.abs(),
+          fromCurrency: currency,
+          toCurrency: target,
+        );
+        convertedFee = fee < 0 ? -feeConversion.convertedAmount : feeConversion.convertedAmount;
+      }
+
+      await supabase.from('transactions').update({
+        'amount': convertedAmount,
+        'currency': target,
+        'fee_amount': convertedFee,
+        'exchange_rate': conversion.exchangeRate,
+        if (row['original_amount'] == null) 'original_amount': amount,
+        if (row['original_currency'] == null) 'original_currency': currency,
+      }).eq('id', id);
+    }
+
+    if (notify) {
+      AppRefreshService.instance.transactionsChanged();
+    }
   }
 
   Future<List<TransactionModel>> getRecentTransactions({int limit = 5}) async {
@@ -204,5 +264,10 @@ class TransactionService {
         .replaceAll(RegExp(r'[^A-Za-z0-9 .&-]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
+  }
+
+  String _normalizeCurrency(String currency) {
+    final normalized = currency.trim().toUpperCase();
+    return RegExp(r'^[A-Z]{3}$').hasMatch(normalized) ? normalized : 'JMD';
   }
 }

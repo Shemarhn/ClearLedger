@@ -3,6 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/constants.dart';
 import '../core/supabase_client.dart';
+import 'app_refresh_service.dart';
+import 'budget_service.dart';
+import 'transaction_service.dart';
 
 class AppAccentThemeOption {
   const AppAccentThemeOption({
@@ -156,6 +159,18 @@ class AppSettingsService extends ChangeNotifier {
     if (normalized == null) {
       throw Exception('Unsupported currency: $currency');
     }
+    final previousCurrency = _preferredCurrency;
+    if (previousCurrency != normalized) {
+      await TransactionService().convertUserTransactionsCurrency(
+        normalized,
+        notify: false,
+      );
+      await BudgetService().convertUserBudgetsCurrency(
+        fromCurrency: previousCurrency,
+        toCurrency: normalized,
+        notify: false,
+      );
+    }
 
     _preferredCurrency = normalized;
     final prefs = await SharedPreferences.getInstance();
@@ -173,6 +188,12 @@ class AppSettingsService extends ChangeNotifier {
         // Keep the local setting even if the profile row is temporarily unavailable.
       }
     }
+    if (previousCurrency != normalized) {
+      AppRefreshService.instance.transactionsChanged();
+      AppRefreshService.instance.budgetsChanged();
+      AppRefreshService.instance.accountsChanged();
+    }
+    AppRefreshService.instance.settingsChanged();
   }
 
   ThemeMode? _themeModeFromString(String? value) {

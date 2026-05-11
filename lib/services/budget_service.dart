@@ -1,8 +1,12 @@
 import '../models/budget.dart';
 import '../models/transaction.dart';
 import '../core/supabase_client.dart';
+import 'app_refresh_service.dart';
+import 'exchange_rate_service.dart';
 
 class BudgetService {
+  final _exchangeRateService = ExchangeRateService();
+
   // Fetch budgets with calculated spent amounts
   Future<List<BudgetModel>> getBudgets({DateTime? month}) async {
     final user = supabase.auth.currentUser;
@@ -82,12 +86,55 @@ class BudgetService {
         .select()
         .single();
 
+    AppRefreshService.instance.budgetsChanged();
     return BudgetModel.fromJson(response);
+  }
+
+  Future<void> convertUserBudgetsCurrency({
+    required String fromCurrency,
+    required String toCurrency,
+    bool notify = true,
+  }) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final from = _normalizeCurrency(fromCurrency);
+    final to = _normalizeCurrency(toCurrency);
+    if (from == to) return;
+
+    final response = await supabase
+        .from('budgets')
+        .select('id, monthly_limit')
+        .eq('user_id', user.id);
+
+    for (final row in response as List) {
+      final id = row['id'] as String?;
+      final limit = (row['monthly_limit'] as num?)?.toDouble();
+      if (id == null || limit == null) continue;
+
+      final conversion = await _exchangeRateService.convert(
+        amount: limit.abs(),
+        fromCurrency: from,
+        toCurrency: to,
+      );
+      final convertedLimit =
+          limit < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
+      await supabase
+          .from('budgets')
+          .update({'monthly_limit': convertedLimit})
+          .eq('id', id)
+          .eq('user_id', user.id);
+    }
+
+    if (notify) {
+      AppRefreshService.instance.budgetsChanged();
+    }
   }
 
   // Delete budget
   Future<void> deleteBudget(String id) async {
     await supabase.from('budgets').delete().eq('id', id);
+    AppRefreshService.instance.budgetsChanged();
   }
 
   // Update budget
@@ -108,6 +155,12 @@ class BudgetService {
         .eq('id', id)
         .select()
         .single();
+    AppRefreshService.instance.budgetsChanged();
     return BudgetModel.fromJson(response);
+  }
+
+  String _normalizeCurrency(String currency) {
+    final normalized = currency.trim().toUpperCase();
+    return RegExp(r'^[A-Z]{3}$').hasMatch(normalized) ? normalized : 'JMD';
   }
 }

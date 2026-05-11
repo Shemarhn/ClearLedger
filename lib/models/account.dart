@@ -174,3 +174,13 @@ class AccountBalanceSummary {
     );
   }
 }
+
+class AccountBalancePoint {
+  const AccountBalancePoint({
+    required this.date,
+    required this.balance,
+  });
+
+  final DateTime date;
+  final double balance;
+}

@@ -2,6 +2,7 @@ import '../core/supabase_client.dart';
 import '../models/account.dart';
 import '../models/transaction.dart';
 import 'app_settings_service.dart';
+import 'app_refresh_service.dart';
 import 'exchange_rate_service.dart';
 import 'transaction_service.dart';
 
@@ -54,6 +55,93 @@ class AccountService {
     return _summaryInCurrency(summary, preferredCurrency);
   }
 
+  Future<List<AccountBalancePoint>> getNetWorthHistory({int days = 30}) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return [];
+
+    final preferredCurrency = AppSettingsService.instance.preferredCurrency;
+    final today = DateTime.now();
+    final end = DateTime(today.year, today.month, today.day);
+    final start = end.subtract(Duration(days: days - 1));
+
+    final accountResponse = await supabase
+        .from('accounts')
+        .select()
+        .eq('user_id', user.id)
+        .eq('archived', false)
+        .order('created_at');
+
+    final accounts = (accountResponse as List)
+        .map((row) => AccountModel.fromJson(row as Map<String, dynamic>))
+        .toList();
+    final transactions = await TransactionService().getTransactions(limit: 2000);
+    transactions.sort((a, b) => a.transactionDate.compareTo(b.transactionDate));
+
+    var running = 0.0;
+    final openingEvents = <_AccountOpeningEvent>[];
+    for (final account in accounts) {
+      final accountCreated = DateTime(
+        account.createdAt.year,
+        account.createdAt.month,
+        account.createdAt.day,
+      );
+      final convertedOpening = await _convertAmount(
+        account.openingBalance,
+        account.currency,
+        preferredCurrency,
+      );
+      if (accountCreated.isBefore(start)) {
+        running += convertedOpening;
+      } else if (!accountCreated.isAfter(end)) {
+        openingEvents.add(
+          _AccountOpeningEvent(date: accountCreated, amount: convertedOpening),
+        );
+      }
+    }
+    openingEvents.sort((a, b) => a.date.compareTo(b.date));
+
+    final inRange = <TransactionModel>[];
+    for (final tx in transactions) {
+      final txDate = DateTime(
+        tx.transactionDate.year,
+        tx.transactionDate.month,
+        tx.transactionDate.day,
+      );
+      if (txDate.isBefore(start)) {
+        running += await _netWorthImpact(tx, preferredCurrency);
+      } else if (!txDate.isAfter(end)) {
+        inRange.add(tx);
+      }
+    }
+
+    final points = <AccountBalancePoint>[];
+    var index = 0;
+    var openingIndex = 0;
+    for (var i = 0; i < days; i++) {
+      final date = start.add(Duration(days: i));
+      while (openingIndex < openingEvents.length) {
+        final opening = openingEvents[openingIndex];
+        if (opening.date.isAfter(date)) break;
+        running += opening.amount;
+        openingIndex++;
+      }
+      while (index < inRange.length) {
+        final tx = inRange[index];
+        final txDate = DateTime(
+          tx.transactionDate.year,
+          tx.transactionDate.month,
+          tx.transactionDate.day,
+        );
+        if (txDate.isAfter(date)) break;
+        running += await _netWorthImpact(tx, preferredCurrency);
+        index++;
+      }
+      points.add(AccountBalancePoint(date: date, balance: running));
+    }
+
+    return points;
+  }
+
   Future<AccountModel> createAccount({
     required String name,
     required AccountType type,
@@ -81,6 +169,7 @@ class AccountService {
         .select()
         .single();
 
+    AppRefreshService.instance.accountsChanged();
     return AccountModel.fromJson(response);
   }
 
@@ -112,7 +201,30 @@ class AccountService {
         .select()
         .single();
 
+    AppRefreshService.instance.accountsChanged();
     return AccountModel.fromJson(response);
+  }
+
+  Future<void> deleteAccount(String accountId) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
+
+    await supabase
+        .from('accounts')
+        .update({
+          'archived': true,
+          'is_default_cash': false,
+        })
+        .eq('id', accountId)
+        .eq('user_id', user.id);
+
+    await supabase
+        .from('account_card_links')
+        .delete()
+        .eq('account_id', accountId)
+        .eq('user_id', user.id);
+
+    AppRefreshService.instance.accountsChanged();
   }
 
   Future<AccountBalanceSummary> _summaryInCurrency(
@@ -235,6 +347,28 @@ class AccountService {
     return amount < 0 ? -conversion.convertedAmount : conversion.convertedAmount;
   }
 
+  Future<double> _netWorthImpact(
+    TransactionModel tx,
+    String preferredCurrency,
+  ) async {
+    final amount = await _convertAmount(tx.amount, tx.currency, preferredCurrency);
+    final fee = tx.feeAmount == null
+        ? 0.0
+        : await _convertAmount(tx.feeAmount!, tx.currency, preferredCurrency);
+
+    switch (tx.transactionType) {
+      case TransactionType.income:
+      case TransactionType.refund:
+        return amount;
+      case TransactionType.expense:
+        return -amount;
+      case TransactionType.transfer:
+      case TransactionType.withdrawal:
+      case TransactionType.deposit:
+        return -fee;
+    }
+  }
+
   Future<void> linkCardDigits({
     required String accountId,
     required String cardLast4,
@@ -252,6 +386,29 @@ class AccountService {
       'account_id': accountId,
       'card_last4': sanitized,
     }, onConflict: 'user_id,card_last4');
+    AppRefreshService.instance.accountsChanged();
+  }
+
+  Future<void> unlinkCardDigits({
+    required String accountId,
+    required String cardLast4,
+  }) async {
+    final user = supabase.auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
+
+    final sanitized = cardLast4.replaceAll(RegExp(r'\D'), '');
+    if (sanitized.length != 4) {
+      throw Exception('Enter exactly 4 card digits.');
+    }
+
+    await supabase
+        .from('account_card_links')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('account_id', accountId)
+        .eq('card_last4', sanitized);
+
+    AppRefreshService.instance.accountsChanged();
   }
 
   Future<AccountModel?> findAccountForCard(String? cardLast4) async {
@@ -304,4 +461,14 @@ class AccountService {
     final normalized = currency.trim().toUpperCase();
     return RegExp(r'^[A-Z]{3}$').hasMatch(normalized) ? normalized : 'JMD';
   }
+}
+
+class _AccountOpeningEvent {
+  const _AccountOpeningEvent({
+    required this.date,
+    required this.amount,
+  });
+
+  final DateTime date;
+  final double amount;
 }

@@ -861,15 +861,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   }
 
   String get _amountCurrency {
-    final account = _accountById(_amountAccountId);
-    return _normalizeCurrency(account?.currency ?? _preferredCurrency);
-  }
-
-  String? get _amountAccountId {
-    if (_transactionType == TransactionType.deposit) {
-      return _destinationAccountId ?? _accountId;
-    }
-    return _accountId ?? _destinationAccountId;
+    return _normalizeCurrency(_preferredCurrency);
   }
 
   double _initialReceiptAmount(ParsedTransaction parsed) {

@@ -5,6 +5,7 @@ import '../../core/constants.dart';
 import '../../models/daily_overview.dart';
 import '../../models/transaction.dart';
 import '../../services/api_service.dart';
+import '../../services/app_refresh_service.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/transaction_service.dart';
 import '../../widgets/dark_shell.dart';
@@ -21,6 +22,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
 
   final _apiService = ApiService();
   final _transactionService = TransactionService();
+  final _refreshService = AppRefreshService.instance;
   bool _loading = true;
   bool _generating = false;
   String? _error;
@@ -34,7 +36,18 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshService.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _refreshService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {

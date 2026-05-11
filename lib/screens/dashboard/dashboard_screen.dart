@@ -5,6 +5,7 @@ import '../../models/account.dart';
 import '../../models/budget.dart';
 import '../../models/transaction.dart';
 import '../../services/account_service.dart';
+import '../../services/app_refresh_service.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/budget_service.dart';
 import '../../services/transaction_service.dart';
@@ -24,19 +25,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _txService = TransactionService();
   final _budgetService = BudgetService();
   final _accountService = AccountService();
+  final _refreshService = AppRefreshService.instance;
 
   bool _loading = true;
   double _totalSpent = 0;
   double _totalIncome = 0;
   List<TransactionModel> _recent = [];
   List<BudgetModel> _budgets = [];
+  List<AccountBalancePoint> _history = [];
   AccountBalanceSummary? _summary;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _refreshService.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _refreshService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -53,6 +67,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } catch (_) {
         summary = null;
       }
+      List<AccountBalancePoint> history = const [];
+      try {
+        history = await _accountService.getNetWorthHistory(days: 30);
+      } catch (_) {
+        history = const [];
+      }
 
       if (!mounted) return;
       setState(() {
@@ -61,6 +81,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _recent = recent;
         _budgets = budgets;
         _summary = summary;
+        _history = history;
         _error = null;
       });
     } catch (error) {
@@ -89,7 +110,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           );
                         }),
                         const SizedBox(height: 12),
-                        _NetWorthCard(summary: _summary, spent: _totalSpent, income: _totalIncome),
+                        _NetWorthCard(
+                          summary: _summary,
+                          spent: _totalSpent,
+                          income: _totalIncome,
+                          history: _history,
+                        ),
                         const SizedBox(height: 14),
                         _AccountStrip(accounts: _summary?.accounts ?? const []),
                         const SizedBox(height: 20),
@@ -171,17 +197,21 @@ class _NetWorthCard extends StatelessWidget {
     required this.summary,
     required this.spent,
     required this.income,
+    required this.history,
   });
 
   final AccountBalanceSummary? summary;
   final double spent;
   final double income;
+  final List<AccountBalancePoint> history;
 
   @override
   Widget build(BuildContext context) {
     final currency = AppSettingsService.instance.preferredCurrency;
     final scheme = Theme.of(context).colorScheme;
     final balance = summary?.netWorth ?? income - spent;
+    final trendDelta = history.length < 2 ? 0.0 : history.last.balance - history.first.balance;
+    final rising = trendDelta >= 0;
     return FinanceHeroPanel(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       child: Column(
@@ -215,24 +245,24 @@ class _NetWorthCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: scheme.primary,
+                  color: rising ? scheme.primary : AppConstants.errorRed,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.trending_up_rounded, color: scheme.onPrimary),
+                child: Icon(
+                  rising ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                  color: scheme.onPrimary,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 62,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _BalanceSparklinePainter(
-                lineColor: scheme.primary,
-                fillColor: scheme.primary.withValues(alpha: 0.14),
-                gridColor: Colors.white.withValues(alpha: 0.08),
-              ),
-            ),
+          _InteractiveBalanceChart(
+            points: history,
+            currency: currency,
+            lineColor: rising ? scheme.primary : AppConstants.errorRed,
+            fillColor: (rising ? scheme.primary : AppConstants.errorRed)
+                .withValues(alpha: 0.14),
+            gridColor: Colors.white.withValues(alpha: 0.08),
           ),
           const SizedBox(height: 14),
           Row(
@@ -405,13 +435,130 @@ class _AccountStrip extends StatelessWidget {
   }
 }
 
-class _BalanceSparklinePainter extends CustomPainter {
-  const _BalanceSparklinePainter({
+class _InteractiveBalanceChart extends StatefulWidget {
+  const _InteractiveBalanceChart({
+    required this.points,
+    required this.currency,
     required this.lineColor,
     required this.fillColor,
     required this.gridColor,
   });
 
+  final List<AccountBalancePoint> points;
+  final String currency;
+  final Color lineColor;
+  final Color fillColor;
+  final Color gridColor;
+
+  @override
+  State<_InteractiveBalanceChart> createState() => _InteractiveBalanceChartState();
+}
+
+class _InteractiveBalanceChartState extends State<_InteractiveBalanceChart> {
+  int? _selectedIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = _selectedIndex == null || widget.points.isEmpty
+        ? null
+        : widget.points[_selectedIndex!.clamp(0, widget.points.length - 1)];
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onLongPressStart: (details) => _selectNearest(details.localPosition.dx),
+      onLongPressMoveUpdate: (details) => _selectNearest(details.localPosition.dx),
+      onLongPressEnd: (_) => setState(() => _selectedIndex = null),
+      onPanStart: (details) => _selectNearest(details.localPosition.dx),
+      onPanUpdate: (details) => _selectNearest(details.localPosition.dx),
+      onPanEnd: (_) => setState(() => _selectedIndex = null),
+      child: SizedBox(
+        height: 104,
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 32,
+              child: selected == null
+                  ? const SizedBox.shrink()
+                  : Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                        ),
+                        child: Text(
+                          '${_dateLabel(selected.date)}  ${widget.currency} ${selected.balance.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: CustomPaint(
+                painter: _BalanceSparklinePainter(
+                  points: widget.points,
+                  selectedIndex: _selectedIndex,
+                  lineColor: widget.lineColor,
+                  fillColor: widget.fillColor,
+                  gridColor: widget.gridColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _selectNearest(double dx) {
+    final count = widget.points.length;
+    if (count == 0) return;
+    final box = context.findRenderObject() as RenderBox?;
+    final width = box?.size.width ?? 1;
+    final index = ((dx / width).clamp(0.0, 1.0) * (count - 1)).round();
+    if (_selectedIndex == index) return;
+    setState(() => _selectedIndex = index);
+  }
+
+  String _dateLabel(DateTime date) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[date.month - 1]} ${date.day}';
+  }
+}
+
+class _BalanceSparklinePainter extends CustomPainter {
+  const _BalanceSparklinePainter({
+    required this.points,
+    required this.selectedIndex,
+    required this.lineColor,
+    required this.fillColor,
+    required this.gridColor,
+  });
+
+  final List<AccountBalancePoint> points;
+  final int? selectedIndex;
   final Color lineColor;
   final Color fillColor;
   final Color gridColor;
@@ -429,22 +576,25 @@ class _BalanceSparklinePainter extends CustomPainter {
       );
     }
 
-    final points = <Offset>[
-      Offset(0, size.height * 0.78),
-      Offset(size.width * 0.12, size.height * 0.70),
-      Offset(size.width * 0.22, size.height * 0.74),
-      Offset(size.width * 0.34, size.height * 0.48),
-      Offset(size.width * 0.47, size.height * 0.55),
-      Offset(size.width * 0.60, size.height * 0.34),
-      Offset(size.width * 0.73, size.height * 0.38),
-      Offset(size.width * 0.86, size.height * 0.21),
-      Offset(size.width, size.height * 0.28),
-    ];
+    final chartPoints = _chartPoints(size);
+    if (chartPoints.isEmpty) {
+      final y = size.height * 0.62;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        Paint()
+          ..color = lineColor.withValues(alpha: 0.55)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3
+          ..strokeCap = StrokeCap.round,
+      );
+      return;
+    }
 
-    final line = Path()..moveTo(points.first.dx, points.first.dy);
-    for (var i = 1; i < points.length; i++) {
-      final previous = points[i - 1];
-      final current = points[i];
+    final line = Path()..moveTo(chartPoints.first.dx, chartPoints.first.dy);
+    for (var i = 1; i < chartPoints.length; i++) {
+      final previous = chartPoints[i - 1];
+      final current = chartPoints[i];
       final midX = (previous.dx + current.dx) / 2;
       line.cubicTo(midX, previous.dy, midX, current.dy, current.dx, current.dy);
     }
@@ -464,11 +614,48 @@ class _BalanceSparklinePainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round
         ..strokeWidth = 3,
     );
+
+    final selected = selectedIndex;
+    if (selected != null && selected >= 0 && selected < chartPoints.length) {
+      final point = chartPoints[selected];
+      final markerPaint = Paint()..color = Colors.white;
+      final markerStroke = Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3;
+      canvas.drawLine(
+        Offset(point.dx, 0),
+        Offset(point.dx, size.height),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.18)
+          ..strokeWidth = 1,
+      );
+      canvas.drawCircle(point, 6, markerPaint);
+      canvas.drawCircle(point, 6, markerStroke);
+    }
+  }
+
+  List<Offset> _chartPoints(Size size) {
+    if (points.isEmpty) return [];
+    final minValue = points.map((point) => point.balance).reduce((a, b) => a < b ? a : b);
+    final maxValue = points.map((point) => point.balance).reduce((a, b) => a > b ? a : b);
+    final range = (maxValue - minValue).abs() < 0.01 ? 1.0 : maxValue - minValue;
+    final horizontalStep = points.length == 1 ? 0.0 : size.width / (points.length - 1);
+    return [
+      for (var i = 0; i < points.length; i++)
+        Offset(
+          horizontalStep * i,
+          size.height - ((points[i].balance - minValue) / range * size.height * 0.76) -
+              size.height * 0.12,
+        ),
+    ];
   }
 
   @override
   bool shouldRepaint(covariant _BalanceSparklinePainter oldDelegate) {
-    return oldDelegate.lineColor != lineColor ||
+    return oldDelegate.points != points ||
+        oldDelegate.selectedIndex != selectedIndex ||
+        oldDelegate.lineColor != lineColor ||
         oldDelegate.fillColor != fillColor ||
         oldDelegate.gridColor != gridColor;
   }

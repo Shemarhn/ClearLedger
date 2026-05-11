@@ -28,6 +28,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _exchangeRateService = ExchangeRateService();
 
   bool _exporting = false;
+  bool _changingCurrency = false;
   bool _loadingBiometricSetting = true;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
@@ -68,11 +69,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _setCurrency(String currency) async {
+    if (_changingCurrency) return;
+    final previous = _currency;
     setState(() => _currency = currency);
-    await _settingsService.setPreferredCurrency(currency);
-    final snapshot = await _exchangeRateService.latestSnapshot(currency);
-    if (!mounted) return;
-    setState(() => _rateSnapshot = snapshot);
+    try {
+      setState(() => _changingCurrency = true);
+      await _settingsService.setPreferredCurrency(currency);
+      final snapshot = await _exchangeRateService.latestSnapshot(currency);
+      if (!mounted) return;
+      setState(() => _rateSnapshot = snapshot);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _currency = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not change preferred currency: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _changingCurrency = false);
+    }
   }
 
   Future<void> _loadBiometricSetting() async {
@@ -273,11 +287,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               child: Text(currency),
                             ))
                         .toList(),
-                    onChanged: (value) {
+                    onChanged: _changingCurrency ? null : (value) {
                       if (value != null) _setCurrency(value);
                     },
                     decoration: const InputDecoration(labelText: 'Preferred currency'),
                   ),
+                  if (_changingCurrency) ...[
+                    const SizedBox(height: 10),
+                    const LinearProgressIndicator(),
+                  ],
                   const SizedBox(height: 12),
                   Text(
                     _rateSnapshot == null

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants.dart';
 import '../../models/account.dart';
 import '../../services/account_service.dart';
+import '../../services/app_refresh_service.dart';
 import '../../services/app_settings_service.dart';
 import '../../services/exchange_rate_service.dart';
 import '../../widgets/dark_shell.dart';
@@ -16,6 +17,7 @@ class AccountsScreen extends StatefulWidget {
 
 class _AccountsScreenState extends State<AccountsScreen> {
   final _accountService = AccountService();
+  final _refreshService = AppRefreshService.instance;
   bool _loading = true;
   String? _error;
   List<AccountModel> _accounts = [];
@@ -23,7 +25,18 @@ class _AccountsScreenState extends State<AccountsScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshService.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _refreshService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {
@@ -102,6 +115,91 @@ class _AccountsScreenState extends State<AccountsScreen> {
     }
   }
 
+  Future<void> _deleteAccount(AccountModel account) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete ${account.name}?'),
+        content: const Text(
+          'This removes the account from your active accounts and unlinks saved card digits. Existing transactions stay in the ledger.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete account'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    try {
+      await _accountService.deleteAccount(account.id);
+      await _load();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete account: $error')),
+      );
+    }
+  }
+
+  Future<void> _manageCards(AccountModel account) async {
+    if (account.linkedCardLast4.isEmpty) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${account.name} cards'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: account.linkedCardLast4
+              .map(
+                (card) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const AppIconBadge(glyph: AppGlyph.card, size: 38),
+                  title: Text('Card ****$card'),
+                  subtitle: const Text('Used for receipt auto-routing'),
+                  trailing: TextButton(
+                    onPressed: () async {
+                      try {
+                        await _accountService.unlinkCardDigits(
+                          accountId: account.id,
+                          cardLast4: card,
+                        );
+                        if (!mounted) return;
+                        Navigator.of(context).pop();
+                        await _load();
+                      } catch (error) {
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not delete card: $error')),
+                        );
+                      }
+                    },
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: AppConstants.errorRed),
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -164,6 +262,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                             account: account,
                             onEdit: () => _editAccount(account),
                             onLinkCard: () => _linkCard(account),
+                            onManageCards: () => _manageCards(account),
+                            onDelete: () => _deleteAccount(account),
                           ),
                         ),
                       ),
@@ -181,11 +281,15 @@ class _AccountCard extends StatelessWidget {
     required this.account,
     required this.onEdit,
     required this.onLinkCard,
+    required this.onManageCards,
+    required this.onDelete,
   });
 
   final AccountModel account;
   final VoidCallback onEdit;
   final VoidCallback onLinkCard;
+  final VoidCallback onManageCards;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +344,15 @@ class _AccountCard extends StatelessWidget {
                 children: [
                   TextButton(onPressed: onEdit, child: const Text('Edit')),
                   TextButton(onPressed: onLinkCard, child: const Text('Link')),
+                  if (account.linkedCardLast4.isNotEmpty)
+                    TextButton(onPressed: onManageCards, child: const Text('Cards')),
+                  TextButton(
+                    onPressed: onDelete,
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: AppConstants.errorRed),
+                    ),
+                  ),
                 ],
               ),
             ],

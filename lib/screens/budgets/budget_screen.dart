@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/budget.dart';
+import '../../services/app_refresh_service.dart';
 import '../../services/budget_alert_service.dart';
 import '../../services/budget_service.dart';
 import '../../widgets/budget_progress_bar.dart';
@@ -16,6 +17,7 @@ class BudgetScreen extends StatefulWidget {
 
 class _BudgetScreenState extends State<BudgetScreen> {
   final _budgetService = BudgetService();
+  final _refreshService = AppRefreshService.instance;
   List<BudgetModel> _budgets = [];
   bool _loading = true;
   String? _error;
@@ -23,7 +25,18 @@ class _BudgetScreenState extends State<BudgetScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshService.addListener(_onDataChanged);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _refreshService.removeListener(_onDataChanged);
+    super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _load();
   }
 
   Future<void> _load() async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/transaction.dart';
+import '../../services/app_refresh_service.dart';
 import '../../services/transaction_service.dart';
 import '../../widgets/dark_shell.dart';
 import '../../widgets/transaction_tile.dart';
@@ -15,6 +16,7 @@ class LedgerScreen extends StatefulWidget {
 
 class _LedgerScreenState extends State<LedgerScreen> {
   final _txService = TransactionService();
+  final _refreshService = AppRefreshService.instance;
   final _searchController = TextEditingController();
 
   List<TransactionModel> _transactions = [];
@@ -25,13 +27,19 @@ class _LedgerScreenState extends State<LedgerScreen> {
   @override
   void initState() {
     super.initState();
+    _refreshService.addListener(_onDataChanged);
     _loadTransactions();
   }
 
   @override
   void dispose() {
+    _refreshService.removeListener(_onDataChanged);
     _searchController.dispose();
     super.dispose();
+  }
+
+  void _onDataChanged() {
+    if (mounted) _loadTransactions();
   }
 
   Future<void> _loadTransactions() async {
