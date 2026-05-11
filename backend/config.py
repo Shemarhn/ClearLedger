@@ -11,7 +11,15 @@ SUPABASE_PUBLISHABLE_KEY: str = os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
 SUPABASE_SECRET_KEY: str = os.getenv("SUPABASE_SECRET_KEY", "")
 
 # LLM APIs
-GEMMA_API_KEY: str = os.getenv("GEMMA_API_KEY") or os.getenv("GOOGLE_AI_API_KEY", "")
+GOOGLE_AI_API_KEY: str = (
+    os.getenv("GEMINI_API_KEY")
+    or os.getenv("GOOGLE_AI_API_KEY")
+    or os.getenv("GEMMA_API_KEY")
+    or ""
+)
+GEMINI_API_KEY: str = GOOGLE_AI_API_KEY
+GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
+GEMMA_API_KEY: str = os.getenv("GEMMA_API_KEY") or GOOGLE_AI_API_KEY
 GEMMA_MODEL: str = os.getenv("GEMMA_MODEL", "gemma-4-31b-it")
 ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
 
@@ -38,7 +46,7 @@ def validate_required_config() -> None:
         missing.append("SUPABASE_PUBLISHABLE_KEY")
     if not SUPABASE_SECRET_KEY:
         missing.append("SUPABASE_SECRET_KEY")
-    if not GEMMA_API_KEY:
-        missing.append("GEMMA_API_KEY")
+    if not GOOGLE_AI_API_KEY:
+        missing.append("GEMINI_API_KEY or GOOGLE_AI_API_KEY")
     if missing:
         raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")

@@ -18,11 +18,13 @@ from models import (
     ReceiptFeedbackResponse,
     TextInput,
 )
-from services.gemma_service import parse_receipt_image, parse_receipt_text, parse_text_description
-from services.claude_service import (
-    parse_receipt_image_fallback,
-    parse_receipt_text_fallback,
-    parse_text_description_fallback,
+from services.gemma_service import (
+    parse_receipt_image,
+    parse_receipt_image_gemma,
+    parse_receipt_text,
+    parse_receipt_text_gemma,
+    parse_text_description,
+    parse_text_description_gemma,
 )
 from services.image_preprocessing import (
     ImagePreparationError,
@@ -118,7 +120,7 @@ async def _parse_receipt_impl(
 
     candidates = extract_receipt_candidates(prepared_ocr_text)
 
-    # Parse with the vision LLM first so transaction type comes from the whole
+    # Parse with the fast vision LLM first so transaction type comes from the whole
     # receipt/screenshot. OCR candidates are supporting evidence, not authority.
     try:
         result = await parse_receipt_image(
@@ -127,36 +129,39 @@ async def _parse_receipt_impl(
             prepared_ocr_text,
             candidates,
         )
-    except Exception as gemma_vision_error:
-        logger.warning(f"Gemma vision failed, trying Gemma OCR text parser: {gemma_vision_error}")
+    except Exception as gemini_vision_error:
+        logger.warning(
+            f"Gemini Flash vision failed, trying Gemini Flash OCR text parser: "
+            f"{gemini_vision_error}"
+        )
         try:
             result = await parse_receipt_text(prepared_ocr_text, candidates)
-        except Exception as gemma_text_error:
+        except Exception as gemini_text_error:
             logger.warning(
-                "Gemma OCR text parser failed, trying Claude vision fallback: "
-                f"{gemma_text_error}"
+                "Gemini Flash OCR text parser failed, trying Gemma vision fallback: "
+                f"{gemini_text_error}"
             )
             try:
-                result = await parse_receipt_image_fallback(
+                result = await parse_receipt_image_gemma(
                     prepared_image.data,
                     prepared_image.mime_type,
                     prepared_ocr_text,
                     candidates,
                 )
-            except Exception as claude_vision_error:
+            except Exception as gemma_vision_error:
                 logger.warning(
-                    "Claude vision failed, trying Claude OCR text fallback: "
-                    f"{claude_vision_error}"
+                    "Gemma vision failed, trying Gemma OCR text fallback: "
+                    f"{gemma_vision_error}"
                 )
                 try:
-                    result = await parse_receipt_text_fallback(prepared_ocr_text, candidates)
-                except Exception as claude_text_error:
+                    result = await parse_receipt_text_gemma(prepared_ocr_text, candidates)
+                except Exception as gemma_text_error:
                     logger.error(
                         "All receipt LLMs failed. "
+                        f"Gemini Flash vision: {gemini_vision_error}, "
+                        f"Gemini Flash text: {gemini_text_error}, "
                         f"Gemma vision: {gemma_vision_error}, "
-                        f"Gemma text: {gemma_text_error}, "
-                        f"Claude vision: {claude_vision_error}, "
-                        f"Claude text: {claude_text_error}. "
+                        f"Gemma text: {gemma_text_error}. "
                         "Using deterministic receipt parser."
                     )
                     result = parse_receipt_text_basic(prepared_ocr_text, candidates)
@@ -193,20 +198,20 @@ async def _parse_text_impl(
     user_id: str = Depends(get_user_id),
 ):
     """
-    Accept a natural language transaction description, send to Gemma,
+    Accept a natural language transaction description, send to Gemini Flash,
     and return structured transaction data.
     """
-    # Parse with Gemma (try fallback on failure)
+    # Parse with Gemini Flash and fall back to Gemma before local rules.
     try:
         result = await parse_text_description(body.text)
-    except Exception as gemma_error:
-        logger.warning(f"Gemma failed, trying Claude fallback: {gemma_error}")
+    except Exception as gemini_error:
+        logger.warning(f"Gemini Flash failed, trying Gemma fallback: {gemini_error}")
         try:
-            result = await parse_text_description_fallback(body.text)
-        except Exception as claude_error:
+            result = await parse_text_description_gemma(body.text)
+        except Exception as gemma_error:
             logger.error(
                 "Both LLMs failed for text parsing. "
-                f"Gemma: {gemma_error}, Claude: {claude_error}. "
+                f"Gemini Flash: {gemini_error}, Gemma: {gemma_error}. "
                 "Trying local fallback parser."
             )
             try:

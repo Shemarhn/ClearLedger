@@ -13,7 +13,7 @@ from supabase import create_client
 from auth import get_user_id
 from config import SUPABASE_SECRET_KEY, SUPABASE_URL
 from models import DailyOverviewResponse
-from services.gemma_service import generate_daily_overview
+from services.gemma_service import generate_daily_overview, generate_daily_overview_gemma
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["Overview"])
@@ -51,6 +51,18 @@ async def daily_overview(user_id: str = Depends(get_user_id)):
 
     try:
         llm = await generate_daily_overview(payload)
+    except Exception as gemini_error:
+        logger.warning("Daily overview Gemini Flash failed, trying Gemma: %s", gemini_error)
+        try:
+            llm = await generate_daily_overview_gemma(payload)
+        except Exception as gemma_error:
+            logger.warning(
+                "Daily overview Gemma failed, using deterministic overview: %s",
+                gemma_error,
+            )
+            llm = None
+
+    if llm:
         summary = str(llm.get("summary") or payload["summary"])
         insights = _string_list(llm.get("insights")) or payload["insights"]
         suggestions = _string_list(llm.get("suggestions")) or payload["suggestions"]
@@ -59,8 +71,7 @@ async def daily_overview(user_id: str = Depends(get_user_id)):
             "insights": insights,
             "suggestions": suggestions,
         }
-    except Exception as error:
-        logger.warning("Daily overview LLM failed, using deterministic overview: %s", error)
+    else:
         summary = payload["summary"]
         insights = payload["insights"]
         suggestions = payload["suggestions"]

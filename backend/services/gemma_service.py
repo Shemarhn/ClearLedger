@@ -1,4 +1,9 @@
-"""Primary LLM provider for Google-hosted Gemma receipt and text parsing."""
+"""Google-hosted LLM providers for receipt and transaction parsing.
+
+Gemini Flash is the primary model for speed. Gemma remains the fallback model
+because it uses the same Google GenAI client/key path and avoids requiring a
+Claude key in production.
+"""
 import asyncio
 from datetime import date
 from io import BytesIO
@@ -7,7 +12,7 @@ import json
 from google import genai
 from google.genai import types
 
-from config import GEMMA_API_KEY, GEMMA_MODEL
+from config import GEMINI_API_KEY, GEMINI_MODEL, GEMMA_API_KEY, GEMMA_MODEL
 from services.llm_json import parse_llm_json_object
 from services.receipt_text_parser import receipt_prompt_payload
 
@@ -33,8 +38,8 @@ Use refund only when the receipt itself is a refund/credit/reversal transaction,
 Do not include any explanation, markdown formatting, or code fences. Return ONLY the raw JSON object."""
 
 
-def _get_client() -> genai.Client:
-    return genai.Client(api_key=GEMMA_API_KEY)
+def _get_client(api_key: str) -> genai.Client:
+    return genai.Client(api_key=api_key)
 
 
 def _generation_config(*, media_resolution: bool = False) -> types.GenerateContentConfig:
@@ -49,16 +54,16 @@ def _generation_config(*, media_resolution: bool = False) -> types.GenerateConte
     return types.GenerateContentConfig(**config)
 
 
-def _generate_content(contents: list) -> str:
-    client = _get_client()
+def _generate_content(contents: list, *, api_key: str, model: str) -> str:
+    client = _get_client(api_key)
     response = client.models.generate_content(
-        model=GEMMA_MODEL,
+        model=model,
         contents=contents,
         config=_generation_config(),
     )
 
     if not response.text:
-        raise ValueError("Gemma returned an empty response.")
+        raise ValueError(f"{model} returned an empty response.")
 
     return response.text
 
@@ -68,8 +73,11 @@ def _generate_image_content(
     mime_type: str,
     ocr_text: str = "",
     candidates: dict | None = None,
+    *,
+    api_key: str,
+    model: str,
 ) -> str:
-    client = _get_client()
+    client = _get_client(api_key)
     uploaded_file = None
     payload = receipt_prompt_payload(ocr_text, candidates or {}) if ocr_text else {}
     prompt = RECEIPT_SYSTEM_PROMPT
@@ -91,7 +99,7 @@ def _generate_image_content(
             ),
         )
         response = client.models.generate_content(
-            model=GEMMA_MODEL,
+            model=model,
             contents=[uploaded_file, prompt],
             config=_generation_config(media_resolution=True),
         )
@@ -103,9 +111,15 @@ def _generate_image_content(
                 pass
 
     if not response.text:
-        raise ValueError("Gemma returned an empty response.")
+        raise ValueError(f"{model} returned an empty response.")
 
     return response.text
+
+
+def _source_prefix(model: str) -> str:
+    if model == GEMMA_MODEL:
+        return "gemma"
+    return "gemini"
 
 
 RECEIPT_TEXT_SYSTEM_PROMPT = """You are parsing OCR text extracted from a receipt.
@@ -142,7 +156,32 @@ Rules:
 
 
 async def parse_receipt_text(ocr_text: str, candidates: dict) -> dict:
-    """Parse OCR receipt text using Gemma text-only inference."""
+    """Parse OCR receipt text using Gemini Flash text-only inference."""
+    return await _parse_receipt_text_with_model(
+        ocr_text,
+        candidates,
+        api_key=GEMINI_API_KEY,
+        model=GEMINI_MODEL,
+    )
+
+
+async def parse_receipt_text_gemma(ocr_text: str, candidates: dict) -> dict:
+    """Fallback: parse OCR receipt text using Gemma text-only inference."""
+    return await _parse_receipt_text_with_model(
+        ocr_text,
+        candidates,
+        api_key=GEMMA_API_KEY,
+        model=GEMMA_MODEL,
+    )
+
+
+async def _parse_receipt_text_with_model(
+    ocr_text: str,
+    candidates: dict,
+    *,
+    api_key: str,
+    model: str,
+) -> dict:
     payload = receipt_prompt_payload(ocr_text, candidates)
     prompt = (
         f"{RECEIPT_TEXT_SYSTEM_PROMPT}\n\n"
@@ -150,9 +189,14 @@ async def parse_receipt_text(ocr_text: str, candidates: dict) -> dict:
         f"{json.dumps(payload, ensure_ascii=False)}"
     )
 
-    response_text = await asyncio.to_thread(_generate_content, [prompt])
-    result = parse_llm_json_object(response_text, "Gemma")
-    result["source"] = "gemma_text"
+    response_text = await asyncio.to_thread(
+        _generate_content,
+        [prompt],
+        api_key=api_key,
+        model=model,
+    )
+    result = parse_llm_json_object(response_text, model)
+    result["source"] = f"{_source_prefix(model)}_text"
     return result
 
 
@@ -180,7 +224,7 @@ async def parse_receipt_image(
     candidates: dict | None = None,
 ) -> dict:
     """
-    Send a receipt image to Gemma and extract transaction data.
+    Send a receipt image to Gemini Flash and extract transaction data.
 
     Args:
         image_bytes: Raw bytes of the receipt image.
@@ -189,22 +233,60 @@ async def parse_receipt_image(
     Returns:
         Parsed transaction data as a dictionary.
     """
+    return await _parse_receipt_image_with_model(
+        image_bytes,
+        mime_type,
+        ocr_text,
+        candidates,
+        api_key=GEMINI_API_KEY,
+        model=GEMINI_MODEL,
+    )
+
+
+async def parse_receipt_image_gemma(
+    image_bytes: bytes,
+    mime_type: str = "image/jpeg",
+    ocr_text: str = "",
+    candidates: dict | None = None,
+) -> dict:
+    """Fallback: send a receipt image to Gemma and extract transaction data."""
+    return await _parse_receipt_image_with_model(
+        image_bytes,
+        mime_type,
+        ocr_text,
+        candidates,
+        api_key=GEMMA_API_KEY,
+        model=GEMMA_MODEL,
+    )
+
+
+async def _parse_receipt_image_with_model(
+    image_bytes: bytes,
+    mime_type: str,
+    ocr_text: str,
+    candidates: dict | None,
+    *,
+    api_key: str,
+    model: str,
+) -> dict:
     response_text = await asyncio.to_thread(
         _generate_image_content,
         image_bytes,
         mime_type,
         ocr_text,
         candidates,
+        api_key=api_key,
+        model=model,
     )
 
-    result = parse_llm_json_object(response_text, "Gemma")
-    result["source"] = "gemma_vision"
+    result = parse_llm_json_object(response_text, model)
+    result["source"] = f"{_source_prefix(model)}_vision"
     return result
 
 
 async def parse_text_description(user_text: str) -> dict:
     """
-    Send a natural language transaction description to Gemma and extract structured data.
+    Send a natural language transaction description to Gemini Flash and extract structured data.
 
     Args:
         user_text: The user's natural language description of a transaction.
@@ -212,15 +294,41 @@ async def parse_text_description(user_text: str) -> dict:
     Returns:
         Parsed transaction data as a dictionary.
     """
+    return await _parse_text_description_with_model(
+        user_text,
+        api_key=GEMINI_API_KEY,
+        model=GEMINI_MODEL,
+    )
+
+
+async def parse_text_description_gemma(user_text: str) -> dict:
+    """Fallback: parse a natural-language transaction with Gemma."""
+    return await _parse_text_description_with_model(
+        user_text,
+        api_key=GEMMA_API_KEY,
+        model=GEMMA_MODEL,
+    )
+
+
+async def _parse_text_description_with_model(
+    user_text: str,
+    *,
+    api_key: str,
+    model: str,
+) -> dict:
     today = date.today().isoformat()
     prompt = TEXT_SYSTEM_PROMPT_TEMPLATE.replace("{today}", today)
 
     response_text = await asyncio.to_thread(
         _generate_content,
         [prompt, f"User input: {user_text}"],
+        api_key=api_key,
+        model=model,
     )
 
-    return parse_llm_json_object(response_text, "Gemma")
+    result = parse_llm_json_object(response_text, model)
+    result["source"] = f"{_source_prefix(model)}_text"
+    return result
 
 
 DAILY_OVERVIEW_PROMPT = """You are a careful personal finance analyst for ClearLedger.
@@ -238,11 +346,41 @@ Rules:
 
 
 async def generate_daily_overview(payload: dict) -> dict:
+    """Generate daily overview with Gemini Flash."""
+    return await _generate_daily_overview_with_model(
+        payload,
+        api_key=GEMINI_API_KEY,
+        model=GEMINI_MODEL,
+    )
+
+
+async def generate_daily_overview_gemma(payload: dict) -> dict:
+    """Fallback: generate daily overview with Gemma."""
+    return await _generate_daily_overview_with_model(
+        payload,
+        api_key=GEMMA_API_KEY,
+        model=GEMMA_MODEL,
+    )
+
+
+async def _generate_daily_overview_with_model(
+    payload: dict,
+    *,
+    api_key: str,
+    model: str,
+) -> dict:
     prompt = (
         f"{DAILY_OVERVIEW_PROMPT}\n\n"
         "Finance payload:\n"
         f"{json.dumps(payload, ensure_ascii=False)}"
     )
 
-    response_text = await asyncio.to_thread(_generate_content, [prompt])
-    return parse_llm_json_object(response_text, "Gemma")
+    response_text = await asyncio.to_thread(
+        _generate_content,
+        [prompt],
+        api_key=api_key,
+        model=model,
+    )
+    result = parse_llm_json_object(response_text, model)
+    result["source"] = f"{_source_prefix(model)}_overview"
+    return result
