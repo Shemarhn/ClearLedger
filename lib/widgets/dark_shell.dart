@@ -4,7 +4,7 @@ class DarkShell extends StatelessWidget {
   const DarkShell({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.fromLTRB(18, 14, 18, 16),
+    this.padding = const EdgeInsets.fromLTRB(18, 18, 18, 16),
     this.maxWidth = 620,
   });
 
@@ -14,22 +14,98 @@ class DarkShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: scheme.surface,
       ),
       child: SafeArea(
         bottom: false,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: Padding(
-              padding: padding,
-              child: child,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ColoredBox(
+                color: dark ? const Color(0xFF0E1110) : const Color(0xFFF4F6F2),
+              ),
             ),
-          ),
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxWidth),
+                child: Padding(
+                  padding: padding,
+                  child: child,
+                ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class FinanceSurface extends StatelessWidget {
+  const FinanceSurface({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(18),
+    this.color,
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: color ?? (dark ? scheme.surfaceContainerLowest : Colors.white),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: padding,
+        child: child,
+      ),
+    );
+  }
+}
+
+class FinanceHeroPanel extends StatelessWidget {
+  const FinanceHeroPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(20),
+  });
+
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF10211D) : const Color(0xFF10251F),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: dark ? 0.10 : 0.12),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: padding,
+        child: child,
       ),
     );
   }
@@ -41,7 +117,7 @@ class FinanceCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.color,
-    this.radius = 16,
+    this.radius = 8,
   });
 
   final Widget child;
@@ -55,7 +131,7 @@ class FinanceCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final surfaceColor =
         color ?? (dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest);
-    final borderColor = scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 0.95);
+    final borderColor = scheme.outlineVariant.withValues(alpha: dark ? 0.52 : 0.84);
     return Container(
       decoration: BoxDecoration(
         color: surfaceColor,
@@ -64,10 +140,10 @@ class FinanceCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: dark
-                ? Colors.black.withValues(alpha: 0.14)
-                : Colors.black.withValues(alpha: 0.06),
-            blurRadius: dark ? 10 : 18,
-            offset: const Offset(0, 8),
+                ? Colors.black.withValues(alpha: 0.10)
+                : Colors.black.withValues(alpha: 0.035),
+            blurRadius: dark ? 6 : 12,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -129,7 +205,7 @@ class AppLogoMark extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(size * 0.24),
+        borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(
           color: colorScheme.primary.withValues(alpha: dark ? 0.46 : 0.34),
           width: 1.2,
@@ -269,18 +345,16 @@ class ScreenHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
     final onSurface = scheme.onSurface;
-    final muted = onSurface.withValues(alpha: dark ? 0.62 : 0.68);
-    final surface = dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest;
+    final muted = onSurface.withValues(alpha: 0.64);
 
     final titleWidget = Text(
       title,
       textAlign: centered ? TextAlign.center : TextAlign.start,
       style: TextStyle(
         color: centered ? Theme.of(context).colorScheme.primary : onSurface,
-        fontSize: centered ? 30 : 25,
+        fontSize: centered ? 31 : 27,
         fontWeight: FontWeight.w900,
         height: 1.08,
       ),
@@ -288,12 +362,7 @@ class ScreenHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(18, centered ? 24 : 18, 18, 20),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1)),
-      ),
+      padding: EdgeInsets.fromLTRB(2, centered ? 18 : 8, 2, 10),
       child: centered
           ? Column(
               children: [
@@ -379,7 +448,7 @@ class AppIconBadge extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         color: badgeFill,
-        borderRadius: BorderRadius.circular(size * 0.24),
+        borderRadius: BorderRadius.circular(size * 0.18),
         border: Border.all(
           color: hasCustomColor
               ? badgeColor.withValues(alpha: 0.28)
@@ -589,7 +658,7 @@ class SectionHeading extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
         ),
         if (trailing != null)

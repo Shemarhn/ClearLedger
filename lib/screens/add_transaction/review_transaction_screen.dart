@@ -478,56 +478,67 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
             key: _formKey,
             child: ListView(
               children: [
-              ScreenHeader(
-                title: 'Review movement',
-                subtitle: 'Confirm the detected details before saving',
-                glyph: AppGlyph.document,
-                trailing: IconButton.filledTonal(
-                  onPressed: _cancelReview,
-                  icon: const Icon(Icons.arrow_back),
+                ScreenHeader(
+                  title: 'Review movement',
+                  subtitle: 'Confirm the detected details before saving',
+                  glyph: AppGlyph.document,
+                  trailing: IconButton.filledTonal(
+                    onPressed: _cancelReview,
+                    icon: const Icon(Icons.arrow_back),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              FinanceCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const AppIconBadge(glyph: AppGlyph.scan, size: 42),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            '${_transactionType.label} detected',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                const SizedBox(height: 16),
+                FinanceHeroPanel(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          AppIconBadge(
+                            glyph: AppGlyph.scan,
+                            size: 42,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '${_transactionType.label} detected',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '$confidence%',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.72),
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (widget.parsed.cardLast4 != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          _unlinkedDetectedCard
+                              ? 'Card ****${widget.parsed.cardLast4} needs an account link'
+                              : 'Card ****${widget.parsed.cardLast4} found on receipt',
+                          style: TextStyle(
+                            color: _unlinkedDetectedCard
+                                ? AppConstants.warningAmber
+                                : Colors.white.withValues(alpha: 0.68),
                           ),
                         ),
-                        Text(
-                          '$confidence%',
-                          style: TextStyle(color: Theme.of(context).colorScheme.primary),
-                        ),
                       ],
-                    ),
-                    if (widget.parsed.cardLast4 != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        _unlinkedDetectedCard
-                            ? 'Card ****${widget.parsed.cardLast4} needs an account link'
-                            : 'Card ****${widget.parsed.cardLast4} found on receipt',
-                        style: TextStyle(
-                          color: _unlinkedDetectedCard
-                              ? AppConstants.warningAmber
-                              : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62),
-                        ),
-                      ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              _typeSelector(),
-              const SizedBox(height: 14),
-              TextFormField(
+                const SizedBox(height: 14),
+                _typeSelector(),
+                const SizedBox(height: 14),
+                TextFormField(
                 controller: _merchantController,
                 decoration: const InputDecoration(labelText: 'Merchant / source'),
               ),
@@ -643,7 +654,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                 decoration: const InputDecoration(labelText: 'Description'),
               ),
               const SizedBox(height: 12),
-              FinanceCard(
+              FinanceSurface(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 child: Row(
                   children: [
@@ -660,7 +671,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
                 const SizedBox(height: 14),
                 const SectionHeading(title: 'Line items'),
                 const SizedBox(height: 8),
-                FinanceCard(
+                FinanceSurface(
                   child: Column(
                     children: widget.parsed.lineItems
                         .map(
@@ -698,7 +709,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   Widget _conversionNotice() {
     final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
     if (_converting) {
-      return const FinanceCard(
+      return const FinanceSurface(
         padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
@@ -711,7 +722,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     }
 
     if (_conversionError != null) {
-      return FinanceCard(
+      return FinanceSurface(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Text(
           'Could not convert $_receiptCurrency to $_amountCurrency yet. Saving will retry.',
@@ -721,7 +732,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
     }
 
     final conversion = _conversion;
-    return FinanceCard(
+    return FinanceSurface(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(
         children: [
@@ -747,7 +758,7 @@ class _ReviewTransactionScreenState extends State<ReviewTransactionScreen> {
   Widget _unlinkedCardPrompt() {
     final selected = _accountById(_cardLinkCandidateAccountId());
     final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
-    return FinanceCard(
+    return FinanceSurface(
       padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

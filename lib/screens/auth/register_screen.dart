@@ -59,7 +59,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.64);
-    final brandColor = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
       body: DarkShell(
@@ -73,39 +72,49 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 icon: const Icon(Icons.arrow_back),
               ),
             ),
-            const SizedBox(height: 30),
             Row(
               children: [
-                const AppLogoMark(size: 48, glow: true),
+                const AppLogoMark(size: 42),
                 const SizedBox(width: 14),
-                Text(
+                const Text(
                   'ClearLedger',
-                  style: TextStyle(
-                    color: brandColor,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, height: 1),
                 ),
               ],
             ),
-            const SizedBox(height: 86),
-            Text(
-              'Sign up',
-              style: TextStyle(
-                color: brandColor,
-                fontSize: 56,
-                fontWeight: FontWeight.w900,
-                height: 1,
+            const SizedBox(height: 30),
+            FinanceHeroPanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'A cleaner ledger starts here.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.74),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Create account',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 38,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              'A cleaner ledger starts here.',
+              'Connect receipts, accounts, and daily finance decisions in one place.',
               style: TextStyle(color: muted, fontSize: 16, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 70),
-            FinanceCard(
+            const SizedBox(height: 24),
+            FinanceSurface(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
               child: Form(
                 key: _formKey,

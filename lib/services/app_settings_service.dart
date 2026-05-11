@@ -78,7 +78,7 @@ class AppSettingsService extends ChangeNotifier {
     ),
   ];
 
-  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode _themeMode = ThemeMode.system;
   String _preferredCurrency = 'JMD';
   String _accentThemeId = 'mint';
   bool _loaded = false;
@@ -99,7 +99,7 @@ class AppSettingsService extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     if (!_loaded) {
-      _themeMode = _themeModeFromString(prefs.getString(_themeKey)) ?? ThemeMode.dark;
+      _themeMode = _themeModeFromString(prefs.getString(_themeKey)) ?? ThemeMode.system;
       _preferredCurrency = _normalizeCurrency(prefs.getString(_currencyKey)) ?? 'JMD';
       _accentThemeId = _normalizeAccentTheme(prefs.getString(_accentThemeKey)) ?? 'mint';
     }

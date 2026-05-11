@@ -26,28 +26,25 @@ class TransactionTile extends StatelessWidget {
             : '-';
     final dark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-    final surface = dark ? scheme.surfaceContainerLow : scheme.surfaceContainerLowest;
-    final stroke = scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1);
+    final surface = dark ? scheme.surfaceContainerLowest : Colors.white;
+    final stroke = scheme.outlineVariant.withValues(alpha: dark ? 0.42 : 0.72);
     final muted = scheme.onSurface.withValues(alpha: 0.62);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: stroke),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: dark ? 0.12 : 0.05),
-            blurRadius: dark ? 10 : 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
       child: ListTile(
         onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        leading: AppIconBadge(glyph: _glyphForType(transaction.transactionType), color: color),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        leading: AppIconBadge(
+          glyph: _glyphForType(transaction.transactionType),
+          color: color,
+          size: 42,
+        ),
         title: Text(
           transaction.merchant ?? transaction.transactionType.label,
           maxLines: 1,

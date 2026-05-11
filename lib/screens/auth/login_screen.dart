@@ -54,47 +54,67 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.64);
-    final brandColor = Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final muted = scheme.onSurface.withValues(alpha: 0.64);
 
     return Scaffold(
       body: DarkShell(
-        padding: const EdgeInsets.fromLTRB(22, 28, 22, 24),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 24),
         child: ListView(
           children: [
-            const SizedBox(height: 18),
             Row(
               children: [
-                const AppLogoMark(size: 48, glow: true),
+                const AppLogoMark(size: 42),
                 const SizedBox(width: 14),
-                Text(
+                const Text(
                   'ClearLedger',
-                  style: TextStyle(
-                    color: brandColor,
-                    fontSize: 30,
-                    fontWeight: FontWeight.w900,
-                    height: 1,
-                  ),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, height: 1),
                 ),
               ],
             ),
-            const SizedBox(height: 94),
-            Text(
-              'Log in',
-              style: TextStyle(
-                color: brandColor,
-                fontSize: 56,
-                fontWeight: FontWeight.w900,
-                height: 1,
+            const SizedBox(height: 32),
+            FinanceHeroPanel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Track smarter.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.74),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Log in',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 42,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      _LoginStatChip(label: 'Receipts', value: 'Scan'),
+                      const SizedBox(width: 8),
+                      _LoginStatChip(label: 'Accounts', value: 'Sync'),
+                      const SizedBox(width: 8),
+                      _LoginStatChip(label: 'Insights', value: 'Daily'),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(
-              'Track smarter. Spend wiser.',
+              'Spend wiser with clean ledgers, account-aware currencies, and receipt review.',
               style: TextStyle(color: muted, fontSize: 16, fontWeight: FontWeight.w700),
             ),
-            const SizedBox(height: 78),
-            FinanceCard(
+            const SizedBox(height: 24),
+            FinanceSurface(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
               child: Form(
                 key: _formKey,
@@ -155,6 +175,48 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LoginStatChip extends StatelessWidget {
+  const _LoginStatChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.58),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
             ),
           ],
         ),

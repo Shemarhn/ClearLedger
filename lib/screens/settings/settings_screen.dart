@@ -31,7 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loadingBiometricSetting = true;
   bool _biometricAvailable = false;
   bool _biometricEnabled = false;
-  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode _themeMode = ThemeMode.system;
   String _currency = 'JMD';
   String _accentThemeId = 'mint';
   ExchangeRateSnapshot? _rateSnapshot;

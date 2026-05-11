@@ -83,12 +83,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     onRefresh: _load,
                     child: ListView(
                       children: [
-        _Header(onSettings: () {
+                        _Header(onSettings: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const SettingsScreen()),
                           );
                         }),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         _NetWorthCard(summary: _summary, spent: _totalSpent, income: _totalIncome),
                         const SizedBox(height: 18),
                         _AccountStrip(accounts: _summary?.accounts ?? const []),
@@ -127,13 +127,34 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ScreenHeader(
-      title: 'Dashboard',
-      subtitle: 'Money movement, neatly tracked',
-      showLogo: true,
-      trailing: IconButton.filledTonal(
-        onPressed: onSettings,
-        icon: const Icon(Icons.settings_outlined),
+    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
+      child: Row(
+        children: [
+          const AppLogoMark(size: 42),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'ClearLedger',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Your money, organized',
+                  style: TextStyle(color: muted, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+          ),
+          IconButton.filledTonal(
+            onPressed: onSettings,
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
       ),
     );
   }
@@ -153,38 +174,55 @@ class _NetWorthCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currency = AppSettingsService.instance.preferredCurrency;
-    final muted = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.62);
-    return FinanceCard(
-      padding: const EdgeInsets.all(22),
+    final scheme = Theme.of(context).colorScheme;
+    final balance = summary?.netWorth ?? income - spent;
+    return FinanceHeroPanel(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const AppIconBadge(glyph: AppGlyph.accounts, size: 44),
-              const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Net worth',
-                  style: TextStyle(color: muted, fontWeight: FontWeight.w800),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Net worth',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    AmountText(
+                      amount: balance,
+                      currency: currency,
+                      compact: false,
+                      color: Colors.white,
+                    ),
+                  ],
                 ),
+              ),
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: scheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.trending_up_rounded, color: scheme.onPrimary),
               ),
             ],
           ),
           const SizedBox(height: 18),
-          AmountText(
-            amount: summary?.netWorth ?? income - spent,
-            currency: currency,
-            compact: false,
-          ),
-          const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
                 child: _MiniMetric(
                   label: 'Inflow',
                   value: '+$currency ${income.toStringAsFixed(0)}',
-                  color: AppConstants.successGreen,
+                  color: const Color(0xFFBDF264),
                 ),
               ),
               const SizedBox(width: 10),
@@ -192,7 +230,7 @@ class _NetWorthCard extends StatelessWidget {
                 child: _MiniMetric(
                   label: 'Spent',
                   value: '-$currency ${spent.toStringAsFixed(0)}',
-                  color: AppConstants.errorRed,
+                  color: const Color(0xFFFFB4AB),
                 ),
               ),
             ],
@@ -216,16 +254,11 @@ class _MiniMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: dark ? scheme.surfaceContainerHigh : scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: dark ? 0.72 : 1),
-        ),
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +266,7 @@ class _MiniMetric extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.58),
+              color: Colors.white.withValues(alpha: 0.62),
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
@@ -260,7 +293,7 @@ class _AccountStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final preferredCurrency = AppSettingsService.instance.preferredCurrency;
     if (accounts.isEmpty) {
-      return const FinanceCard(
+      return const FinanceSurface(
         child: Text('Create accounts to track cash, banks, and cards.'),
       );
     }
@@ -275,12 +308,30 @@ class _AccountStrip extends StatelessWidget {
           final account = accounts[index];
           return SizedBox(
             width: 208,
-            child: FinanceCard(
+            child: FinanceSurface(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppIconBadge(glyph: _glyphForAccount(account.type), size: 38),
+                  Row(
+                    children: [
+                      AppIconBadge(glyph: _glyphForAccount(account.type), size: 36),
+                      const Spacer(),
+                      Text(
+                        account.currency.isNotEmpty
+                            ? account.currency
+                            : preferredCurrency,
+                        style: TextStyle(
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSurface
+                              .withValues(alpha: 0.56),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
                   const Spacer(),
                   Text(
                     account.name,
