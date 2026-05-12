@@ -19,6 +19,9 @@ class AiOverviewScreen extends StatefulWidget {
 
 class _AiOverviewScreenState extends State<AiOverviewScreen> {
   static const _lastGeneratedKey = 'ai_overview_last_generated_date';
+  static const _generatedCountDateKey = 'ai_overview_generated_count_date';
+  static const _generatedCountKey = 'ai_overview_generated_count';
+  static const _dailyGenerationLimit = 10;
 
   final _apiService = ApiService();
   final _transactionService = TransactionService();
@@ -27,6 +30,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
   bool _generating = false;
   String? _error;
   String? _lastGenerated;
+  int _generatedTodayCount = 0;
   List<String> _insights = [];
   List<String> _suggestions = [];
   String _summary = 'Generate an overview to get a detailed read on today.';
@@ -61,8 +65,15 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
       if (!mounted) return;
       final storedInsights = prefs.getStringList('ai_overview_insights');
       final storedSuggestions = prefs.getStringList('ai_overview_suggestions');
+      final today = _todayKey();
+      final lastGenerated = prefs.getString(_lastGeneratedKey);
+      final countDate = prefs.getString(_generatedCountDateKey);
+      final generatedCount = countDate == today
+          ? (prefs.getInt(_generatedCountKey) ?? 0)
+          : (lastGenerated == today ? 1 : 0);
       setState(() {
-        _lastGenerated = prefs.getString(_lastGeneratedKey);
+        _lastGenerated = lastGenerated;
+        _generatedTodayCount = generatedCount;
         _income = income;
         _spent = spent;
         _insights = storedInsights ?? _buildInsights(txs, income, spent);
@@ -96,7 +107,12 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
     }
   }
 
-  bool get _canGenerateToday => _lastGenerated != _todayKey();
+  bool get _canGenerateToday => _generatedTodayCount < _dailyGenerationLimit;
+
+  int get _remainingGenerationsToday =>
+      (_dailyGenerationLimit - _generatedTodayCount)
+          .clamp(0, _dailyGenerationLimit)
+          .toInt();
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +126,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                     children: [
                       const ScreenHeader(
                         title: 'AI Overview',
-                        subtitle: 'A once-daily read on your money habits',
+                        subtitle: 'Fresh reads on your money habits',
                         glyph: AppGlyph.insight,
                       ),
                       const SizedBox(height: 18),
@@ -131,7 +147,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                   children: [
                     const ScreenHeader(
                       title: 'AI Overview',
-                      subtitle: 'A once-daily read on your money habits',
+                      subtitle: 'Fresh reads on your money habits',
                       glyph: AppGlyph.insight,
                     ),
                     const SizedBox(height: 18),
@@ -146,8 +162,8 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
                               Expanded(
                                 child: Text(
                                   _canGenerateToday
-                                      ? 'Ready for today'
-                                      : 'Generated today',
+                                      ? '$_remainingGenerationsToday left today'
+                                      : 'Daily limit reached',
                                   style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w900,
@@ -249,7 +265,15 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
 
   Future<void> _storeOverview(DailyOverview overview) async {
     final prefs = await SharedPreferences.getInstance();
+    final generatedFor = overview.generatedFor;
+    final currentCount = prefs.getString(_generatedCountDateKey) == generatedFor
+        ? (prefs.getInt(_generatedCountKey) ?? 0)
+        : 0;
+    final nextCount = currentCount + 1;
+
     await prefs.setString(_lastGeneratedKey, overview.generatedFor);
+    await prefs.setString(_generatedCountDateKey, generatedFor);
+    await prefs.setInt(_generatedCountKey, nextCount);
     await prefs.setString('ai_overview_summary', overview.summary);
     await prefs.setStringList('ai_overview_insights', overview.insights);
     await prefs.setStringList('ai_overview_suggestions', overview.suggestions);
@@ -259,6 +283,7 @@ class _AiOverviewScreenState extends State<AiOverviewScreen> {
       _insights = overview.insights;
       _suggestions = overview.suggestions;
       _lastGenerated = overview.generatedFor;
+      _generatedTodayCount = generatedFor == _todayKey() ? nextCount : _generatedTodayCount;
     });
   }
 }

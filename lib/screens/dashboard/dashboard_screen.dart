@@ -209,10 +209,16 @@ class _NetWorthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final currency = AppSettingsService.instance.preferredCurrency;
     final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final balance = summary?.netWorth ?? income - spent;
     final trendDelta = history.length < 2 ? 0.0 : history.last.balance - history.first.balance;
     final rising = trendDelta >= 0;
+    final panelText = dark ? Colors.white : scheme.onSurface;
+    final panelMuted = panelText.withValues(alpha: dark ? 0.72 : 0.66);
+    final spentColor = dark ? const Color(0xFFFFB4AB) : const Color(0xFFB3261E);
+    final trendColor = rising ? scheme.primary : spentColor;
     return FinanceHeroPanel(
+      adaptive: true,
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +232,7 @@ class _NetWorthCard extends StatelessWidget {
                     Text(
                       'Net worth',
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
+                        color: panelMuted,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                       ),
@@ -236,7 +242,7 @@ class _NetWorthCard extends StatelessWidget {
                       amount: balance,
                       currency: currency,
                       compact: false,
-                      color: Colors.white,
+                      color: panelText,
                     ),
                   ],
                 ),
@@ -245,12 +251,12 @@ class _NetWorthCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: rising ? scheme.primary : AppConstants.errorRed,
+                  color: trendColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   rising ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                  color: scheme.onPrimary,
+                  color: rising ? scheme.onPrimary : Colors.white,
                 ),
               ),
             ],
@@ -259,10 +265,9 @@ class _NetWorthCard extends StatelessWidget {
           _InteractiveBalanceChart(
             points: history,
             currency: currency,
-            lineColor: rising ? scheme.primary : AppConstants.errorRed,
-            fillColor: (rising ? scheme.primary : AppConstants.errorRed)
-                .withValues(alpha: 0.14),
-            gridColor: Colors.white.withValues(alpha: 0.08),
+            lineColor: trendColor,
+            fillColor: trendColor.withValues(alpha: 0.14),
+            gridColor: panelText.withValues(alpha: dark ? 0.08 : 0.12),
           ),
           const SizedBox(height: 14),
           Row(
@@ -279,7 +284,7 @@ class _NetWorthCard extends StatelessWidget {
                 child: _MiniMetric(
                   label: 'Spent',
                   value: '-$currency ${spent.toStringAsFixed(0)}',
-                  color: const Color(0xFFFFB4AB),
+                  color: spentColor,
                 ),
               ),
             ],
@@ -303,12 +308,21 @@ class _MiniMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final textColor = dark ? Colors.white : scheme.onSurface;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.075),
+        color: dark
+            ? Colors.white.withValues(alpha: 0.075)
+            : scheme.surfaceContainerHigh.withValues(alpha: 0.70),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+          color: dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : scheme.outlineVariant.withValues(alpha: 0.82),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +330,7 @@ class _MiniMetric extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.62),
+              color: textColor.withValues(alpha: 0.62),
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),
@@ -459,6 +473,15 @@ class _InteractiveBalanceChartState extends State<_InteractiveBalanceChart> {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+    final textColor = dark ? Colors.white : scheme.onSurface;
+    final tooltipColor = dark
+        ? Colors.white.withValues(alpha: 0.10)
+        : scheme.surfaceContainerHighest.withValues(alpha: 0.92);
+    final tooltipBorderColor = dark
+        ? Colors.white.withValues(alpha: 0.10)
+        : scheme.outlineVariant.withValues(alpha: 0.84);
     final selected = _selectedIndex == null || widget.points.isEmpty
         ? null
         : widget.points[_selectedIndex!.clamp(0, widget.points.length - 1)];
@@ -486,14 +509,14 @@ class _InteractiveBalanceChartState extends State<_InteractiveBalanceChart> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.10),
+                          color: tooltipColor,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+                          border: Border.all(color: tooltipBorderColor),
                         ),
                         child: Text(
                           '${_dateLabel(selected.date)}  ${widget.currency} ${selected.balance.toStringAsFixed(0)}',
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textColor,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                           ),
@@ -510,6 +533,8 @@ class _InteractiveBalanceChartState extends State<_InteractiveBalanceChart> {
                   lineColor: widget.lineColor,
                   fillColor: widget.fillColor,
                   gridColor: widget.gridColor,
+                  markerColor: dark ? Colors.white : scheme.surfaceContainerLowest,
+                  guideColor: textColor.withValues(alpha: dark ? 0.18 : 0.16),
                 ),
               ),
             ),
@@ -555,6 +580,8 @@ class _BalanceSparklinePainter extends CustomPainter {
     required this.lineColor,
     required this.fillColor,
     required this.gridColor,
+    required this.markerColor,
+    required this.guideColor,
   });
 
   final List<AccountBalancePoint> points;
@@ -562,6 +589,8 @@ class _BalanceSparklinePainter extends CustomPainter {
   final Color lineColor;
   final Color fillColor;
   final Color gridColor;
+  final Color markerColor;
+  final Color guideColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -618,7 +647,7 @@ class _BalanceSparklinePainter extends CustomPainter {
     final selected = selectedIndex;
     if (selected != null && selected >= 0 && selected < chartPoints.length) {
       final point = chartPoints[selected];
-      final markerPaint = Paint()..color = Colors.white;
+      final markerPaint = Paint()..color = markerColor;
       final markerStroke = Paint()
         ..color = lineColor
         ..style = PaintingStyle.stroke
@@ -627,7 +656,7 @@ class _BalanceSparklinePainter extends CustomPainter {
         Offset(point.dx, 0),
         Offset(point.dx, size.height),
         Paint()
-          ..color = Colors.white.withValues(alpha: 0.18)
+          ..color = guideColor
           ..strokeWidth = 1,
       );
       canvas.drawCircle(point, 6, markerPaint);
@@ -657,7 +686,9 @@ class _BalanceSparklinePainter extends CustomPainter {
         oldDelegate.selectedIndex != selectedIndex ||
         oldDelegate.lineColor != lineColor ||
         oldDelegate.fillColor != fillColor ||
-        oldDelegate.gridColor != gridColor;
+        oldDelegate.gridColor != gridColor ||
+        oldDelegate.markerColor != markerColor ||
+        oldDelegate.guideColor != guideColor;
   }
 }
 

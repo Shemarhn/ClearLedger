@@ -1,5 +1,7 @@
 """Endpoints for generating PDF and CSV exports."""
 
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response
 from supabase import create_client
@@ -10,6 +12,7 @@ from models import ExportRequest
 from services.export_service import generate_csv, generate_pdf
 
 router = APIRouter(prefix="/export", tags=["Export"])
+logger = logging.getLogger(__name__)
 
 
 def _get_supabase():
@@ -32,14 +35,24 @@ async def _get_transactions_for_period(user_id: str, start_date, end_date):
 
 def _get_user_name(user_id: str) -> str:
     supabase = _get_supabase()
-    profile = (
-        supabase.table("profiles")
-        .select("full_name")
-        .eq("id", user_id)
-        .single()
-        .execute()
-    )
-    return profile.data.get("full_name", "User") if profile.data else "User"
+    try:
+        profile = (
+            supabase.table("profiles")
+            .select("full_name")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as error:
+        logger.warning("Could not load export profile name for %s: %s", user_id, error)
+        return "User"
+
+    rows = profile.data or []
+    if not rows:
+        return "User"
+
+    full_name = str(rows[0].get("full_name") or "").strip()
+    return full_name or "User"
 
 
 @router.post("/pdf")

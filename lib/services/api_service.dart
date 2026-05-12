@@ -166,19 +166,24 @@ class ApiService {
     final token = await _getToken();
     if (token == null) throw ApiException("Not authenticated");
 
-    final response = await _dio.post<List<int>>(
-      '/export/pdf',
-      data: {
-        'start_date': _dateOnly(startDate),
-        'end_date': _dateOnly(endDate),
-      },
-      options: Options(
-        headers: {'Authorization': 'Bearer $token'},
-        responseType: ResponseType.bytes,
-      ),
-    );
+    try {
+      final response = await _dio.post<List<int>>(
+        '/export/pdf',
+        data: {
+          'start_date': _dateOnly(startDate),
+          'end_date': _dateOnly(endDate),
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+          receiveTimeout: _receiptParseTimeout,
+        ),
+      );
 
-    return response.data ?? [];
+      return response.data ?? [];
+    } on DioException catch (e) {
+      throw ApiException(_exportErrorMessage(e, 'PDF'));
+    }
   }
 
   Future<List<int>> exportCsv({
@@ -188,22 +193,35 @@ class ApiService {
     final token = await _getToken();
     if (token == null) throw ApiException("Not authenticated");
 
-    final response = await _dio.post<List<int>>(
-      '/export/csv',
-      data: {
-        'start_date': _dateOnly(startDate),
-        'end_date': _dateOnly(endDate),
-      },
-      options: Options(
-        headers: {'Authorization': 'Bearer $token'},
-        responseType: ResponseType.bytes,
-      ),
-    );
+    try {
+      final response = await _dio.post<List<int>>(
+        '/export/csv',
+        data: {
+          'start_date': _dateOnly(startDate),
+          'end_date': _dateOnly(endDate),
+        },
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+          responseType: ResponseType.bytes,
+          receiveTimeout: _receiptParseTimeout,
+        ),
+      );
 
-    return response.data ?? [];
+      return response.data ?? [];
+    } on DioException catch (e) {
+      throw ApiException(_exportErrorMessage(e, 'CSV'));
+    }
   }
 
   String _dateOnly(DateTime date) {
     return "${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
+  String _exportErrorMessage(DioException error, String type) {
+    final data = error.response?.data;
+    if (data is Map && data['detail'] != null) {
+      return data['detail'].toString();
+    }
+    return "$type export failed: ${error.message}";
   }
 }

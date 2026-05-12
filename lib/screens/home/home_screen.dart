@@ -128,7 +128,7 @@ class _AppDrawer extends StatelessWidget {
             _DrawerItem(
               glyph: AppGlyph.insight,
               title: 'AI Overview',
-              subtitle: 'Once-daily spending analysis',
+              subtitle: 'Daily spending analysis',
               onTap: () => onOpenPage(const AiOverviewScreen()),
             ),
             const Divider(height: 34),

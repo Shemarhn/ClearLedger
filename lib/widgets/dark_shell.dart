@@ -116,30 +116,41 @@ class FinanceHeroPanel extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(20),
+    this.adaptive = false,
   });
 
   final Widget child;
   final EdgeInsets padding;
+  final bool adaptive;
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    final useLightSurface = adaptive && !dark;
+    final backgroundColor = useLightSurface
+        ? scheme.surfaceContainerLowest
+        : dark
+            ? const Color(0xFF0B1B2A)
+            : const Color(0xFF0A1E2C);
+    final borderColor = useLightSurface
+        ? scheme.outlineVariant.withValues(alpha: 0.84)
+        : dark
+            ? Colors.white.withValues(alpha: 0.08)
+            : Colors.black.withValues(alpha: 0.08);
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: dark ? const Color(0xFF0B1B2A) : const Color(0xFF0A1E2C),
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: dark
-              ? Colors.white.withValues(alpha: 0.08)
-              : Colors.black.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: borderColor),
         boxShadow: [
           BoxShadow(
-            color: scheme.primary.withValues(alpha: dark ? 0.18 : 0.16),
-            blurRadius: 26,
-            offset: const Offset(0, 16),
+            color: useLightSurface
+                ? Colors.black.withValues(alpha: 0.035)
+                : scheme.primary.withValues(alpha: dark ? 0.18 : 0.16),
+            blurRadius: useLightSurface ? 12 : 26,
+            offset: Offset(0, useLightSurface ? 10 : 16),
           ),
         ],
       ),
@@ -156,7 +167,7 @@ class FinanceHeroPanel extends StatelessWidget {
                   width: 170,
                   height: 88,
                   decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.30),
+                    color: scheme.primary.withValues(alpha: useLightSurface ? 0.10 : 0.30),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
@@ -171,7 +182,7 @@ class FinanceHeroPanel extends StatelessWidget {
                   width: 210,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: scheme.secondary.withValues(alpha: 0.14),
+                    color: scheme.secondary.withValues(alpha: useLightSurface ? 0.08 : 0.14),
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),

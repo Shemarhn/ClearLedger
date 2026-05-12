@@ -5,6 +5,7 @@ Generates PDF and CSV reports for transaction data.
 import csv
 import io
 from datetime import date
+from html import escape
 from typing import Any
 
 from reportlab.lib import colors
@@ -63,26 +64,27 @@ def generate_pdf(
         textColor=colors.HexColor("#666666"),
         spaceAfter=20,
     )
+    safe_user_name = escape(_text(user_name, "User"))
     elements.append(
         Paragraph(
-            f"Report for {user_name} | {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}",
+            f"Report for {safe_user_name} | {start_date.strftime('%B %d, %Y')} to {end_date.strftime('%B %d, %Y')}",
             subtitle_style,
         )
     )
 
     # Summary section
     total_amount = sum(
-        float(t.get("amount", 0))
+        _amount(t.get("amount"))
         for t in transactions
         if (t.get("transaction_type") or "expense") == "expense"
     )
     category_totals: dict[str, float] = {}
     report_currency = _report_currency(transactions)
     for t in transactions:
-        cat = t.get("category", "Other")
+        cat = _text(t.get("category"), "Other")
         if (t.get("transaction_type") or "expense") != "expense":
             continue
-        category_totals[cat] = category_totals.get(cat, 0) + float(t.get("amount", 0))
+        category_totals[cat] = category_totals.get(cat, 0) + _amount(t.get("amount"))
 
     summary_style = ParagraphStyle(
         "Summary",
@@ -137,12 +139,12 @@ def generate_pdf(
         for t in transactions:
             table_data.append(
                 [
-                    t.get("transaction_date", "N/A"),
-                    t.get("transaction_type", "expense"),
-                    t.get("merchant", "Unknown")[:30],
-                    t.get("category", "Other"),
-                    f"{float(t.get('amount', 0)):,.2f}",
-                    t.get("input_method", "N/A"),
+                    _text(t.get("transaction_date"), "N/A"),
+                    _text(t.get("transaction_type"), "expense"),
+                    _text(t.get("merchant"), "Unknown", max_length=30),
+                    _text(t.get("category"), "Other"),
+                    f"{_amount(t.get('amount')):,.2f}",
+                    _text(t.get("input_method"), "N/A"),
                 ]
             )
 
@@ -226,9 +228,27 @@ def _csv_cell(value: Any) -> str:
     return str(value).replace("\r", " ").replace("\n", " ").strip()
 
 
+def _text(value: Any, default: str = "", *, max_length: int | None = None) -> str:
+    if value is None:
+        text = default
+    else:
+        text = str(value).replace("\r", " ").replace("\n", " ").strip()
+        if not text:
+            text = default
+
+    return text[:max_length] if max_length is not None else text
+
+
+def _amount(value: Any) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _report_currency(transactions: list[dict[str, Any]]) -> str:
     for transaction in transactions:
-        currency = str(transaction.get("currency") or "").strip().upper()
+        currency = _text(transaction.get("currency")).upper()
         if currency:
             return currency
     return "JMD"
